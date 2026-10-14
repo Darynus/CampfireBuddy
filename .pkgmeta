@@ -1,0 +1,7 @@
+package-as: CampfireBuddy
+
+ignore:
+  - images
+  - README.md
+  - .pkgmeta
+  - .gitignore
