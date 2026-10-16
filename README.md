@@ -30,7 +30,7 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 - **Camp tab**: which campfire you are at (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, which camp bonuses you get and how strong they are.
 - **What you can add**: every object your professions can bring that this camp is missing, or a better one that replaces a smaller one.
 - **Camp tip**: after a minute at the fire, one chat line tells you what this camp can still use from you.
-- Learned from your Camp Benefits, the bonus buffs, objects placed by you or your group, and the fire you hover over. Nothing is sent to anyone.
+- Learned from your Camp Benefits, objects placed by you, your group or players nearby, and the fire and objects you hover over. Nothing is sent to anyone.
 
 ![Camp tab](images/campfirebuddy-8-camp.png)
 

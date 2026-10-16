@@ -121,6 +121,24 @@ function S.kasten(parent, typ, grund, rand, name)
   return f
 end
 
+-- Kasten im Hauptfenster: Rand der Tooltips und Auswahllisten des Spiels (gibt es in jedem
+-- Client), damit er zum Fenster im Look des Spiels passt. Leisten bleiben bei S.kasten (flach).
+S.KASTEN_SPIEL = {
+  bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+  tile = true, tileSize = 16, edgeSize = 12,
+  insets = { left = 3, right = 3, top = 3, bottom = 3 },
+}
+function S.spielKasten(parent, typ, grund, rand)
+  local f = CreateFrame(typ or "Frame", nil, parent, "BackdropTemplate")
+  if f.SetBackdrop then
+    f:SetBackdrop(S.KASTEN_SPIEL)
+    f:SetBackdropColor(rgba(grund or { 0.04, 0.04, 0.05, 0.9 }))
+    f:SetBackdropBorderColor(rgba(rand or { 0.62, 0.64, 0.70, 1 }))
+  end
+  return f
+end
+
 -- Baustein des Spiels (Vorlage aus dem Client, z. B. UIPanelButtonTemplate). nil, wenn es die
 -- Vorlage in diesem Client nicht gibt. Das Hauptfenster nimmt so den echten Look von WoW, wo es
 -- geht, und fällt sonst auf die eigenen Bausteine zurück.
@@ -463,14 +481,15 @@ end
 -- Hauptfenster. Die Buff-Leiste bleibt flach.
 S.STATUSLEISTE = "Interface\\TargetingFrame\\UI-StatusBar"
 function S.balken(parent, breite, hoehe, echt)
-  local b = S.kasten(parent, "Frame", echt and { 0, 0, 0, 0.55 } or F.flaeche, echt and { 0.35, 0.35, 0.35, 1 } or F.rand)
+  local b = echt and S.spielKasten(parent, "Frame", { 0, 0, 0, 0.6 }) or S.kasten(parent, "Frame", F.flaeche, F.rand)
   b:SetSize(breite, hoehe)
+  local rand = echt and 3 or 1      -- Füllung innerhalb des Rands
   b.zweit = b:CreateTexture(nil, "ARTWORK", nil, 1)
-  b.zweit:SetPoint("TOPLEFT", 1, -1)
-  b.zweit:SetPoint("BOTTOMLEFT", 1, 1)
+  b.zweit:SetPoint("TOPLEFT", rand, -rand)
+  b.zweit:SetPoint("BOTTOMLEFT", rand, rand)
   b.voll = b:CreateTexture(nil, "ARTWORK", nil, 2)
-  b.voll:SetPoint("TOPLEFT", 1, -1)
-  b.voll:SetPoint("BOTTOMLEFT", 1, 1)
+  b.voll:SetPoint("TOPLEFT", rand, -rand)
+  b.voll:SetPoint("BOTTOMLEFT", rand, rand)
   if echt then
     b.zweit:SetTexture(S.STATUSLEISTE)
     b.zweit:SetVertexColor(rgba(F.erholt))
@@ -480,7 +499,7 @@ function S.balken(parent, breite, hoehe, echt)
     b.zweit:SetColorTexture(rgba(F.erholt))
     b.voll:SetColorTexture(rgba(F.akzent))
   end
-  local innen = breite - 2
+  local innen = breite - 2 * rand
   local function breiteVon(anteil)
     return math.max(0.001, math.min(1, anteil or 0)) * innen
   end

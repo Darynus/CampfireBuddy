@@ -6,10 +6,13 @@
 --      (C_Item.GetItemSpell), die der Feuer stehen in Objekte.lua.
 --   2. Tooltip von Camp Benefits: eine Zeile je Objekt ("Name: Wirkung"). Ingenieurs- und
 --      Koch-Objekte fehlen dort.
---   3. Maus über dem Feuer (Tooltip eines Spielobjekts), nur für seine Größe. Bei den Objekten
---      nicht: Ein Amboss oder Webstuhl im Dorf heißt genauso wie das Lager-Objekt, und das Spiel
---      nennt bei Objekten weder Position noch Kennung (Patricks Fund in Goldshire, 16. Okt).
---   4. Bonus-Buffs der Objekte (Zauber-ID): nur welcher Bonus wirkt, nicht welche Stufe.
+--   3. Maus über dem Feuer oder einem Objekt (Tooltip eines Spielobjekts). Nicht bei Objekten,
+--      die genauso heißen wie normale Dinge im Dorf (Amboss, Webstuhl, Spinnrad, Gerbgestell,
+--      Objekte.lua "mehrdeutig"): Das Spiel nennt bei Objekten weder Position noch Kennung
+--      (Patricks Fund in Goldshire, 16. Okt).
+--   4. Aufstellen durch Fremde in der Nähe (Namensplaketten, Ziel, Maus), solange man am Feuer ist.
+-- Die Boni selbst stehen in Forever alle im einen Buff Camp Benefits (Zeilen "Objekt: Wirkung"),
+-- eigene Buffs je Objekt gibt es nicht (Patricks Screenshot, 16. Okt). LG:Benefits liest sie.
 -- Namen werden nur mit den Namen verglichen, die das Spiel selbst zu den IDs nennt. So passt es in
 -- jeder Spielsprache. Gelesen wird nur außerhalb des Kampfes. Es wird nichts gesendet.
 local ADDON, ns = ...
@@ -20,7 +23,7 @@ local LG = { objekte = {}, aktiv = false }
 ns.Lager = LG
 
 local FEUER_DAUER = 15 * 60   -- ein Feuer brennt etwa 15 Minuten
-local WEG_FRIST = 45          -- so lange darf man weg sein, ohne dass das Lager vergessen wird
+local WEG_FRIST = 90          -- so lange darf man weg sein, ohne dass das Lager vergessen wird
 local FEUER_VORLAUF = 20      -- Feuer aufgestellt, "Campfire Nearby" kommt kurz danach
 
 local function geheim(v) return issecretvalue ~= nil and issecretvalue(v) end
@@ -129,8 +132,8 @@ local function wiederholen(self, ersteAnkunft)
   if m.feuer and nachZauber[m.feuer] then self.feuer = { o = nachZauber[m.feuer], quelle = m.feuerQuelle or "cast" } end
   for _, e in ipairs(m.objekte or {}) do
     local o = type(e) == "table" and nachZauber[e.spell]
-    -- Maus-Funde bei Objekten zählen nicht mehr (siehe oben), auch nicht aus älteren Ständen
-    if o and e.quelle ~= "maus" then self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true } end
+    -- Maus-Funde bei mehrdeutigen Objekten zählen nicht (siehe oben), auch nicht aus älteren Ständen
+    if o and not (e.quelle == "maus" and o.mehrdeutig) then self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true } end
   end
 end
 
@@ -201,37 +204,115 @@ local function frisch(self, a)
   return (a.ende - a.dauer) >= self.seit - 5
 end
 
--- Zeilen aus dem Tooltip einer Aura
+-- Ohne Farbcodes (|cffxxxxxx ... |r), sonst passt der Anfang der Zeile nicht zum Namen
+local function ohneFarbe(text)
+  return (string.gsub(string.gsub(text, "|c%x%x%x%x%x%x%x%x", ""), "|r", ""))
+end
+
+local function zerlegen(zeilen, feld)
+  if type(feld) == "string" and not geheim(feld) then
+    for teil in string.gmatch(ohneFarbe(feld), "[^\r\n]+") do
+      teil = string.gsub(teil, "^%s+", "")
+      if teil ~= "" then table.insert(zeilen, teil) end
+    end
+  end
+end
+
+-- Zeilen aus dem Tooltip einer Aura. Erst über C_TooltipInfo, sonst über einen eigenen,
+-- unsichtbaren Tooltip.
+local lesen
 local function tooltipZeilen(instanz)
   local zeilen = {}
-  if not (instanz and C_TooltipInfo and C_TooltipInfo.GetUnitBuffByAuraInstanceID) then return zeilen end
-  local ok, daten = pcall(C_TooltipInfo.GetUnitBuffByAuraInstanceID, "player", instanz)
-  if not ok or type(daten) ~= "table" or type(daten.lines) ~= "table" then return zeilen end
-  for _, l in ipairs(daten.lines) do
-    for _, feld in ipairs({ l.leftText or false, l.rightText or false }) do
-      if type(feld) == "string" and not geheim(feld) then
-        for teil in string.gmatch(feld, "[^\r\n]+") do table.insert(zeilen, teil) end
+  if not instanz then return zeilen end
+  if C_TooltipInfo and C_TooltipInfo.GetUnitBuffByAuraInstanceID then
+    local ok, daten = pcall(C_TooltipInfo.GetUnitBuffByAuraInstanceID, "player", instanz)
+    if ok and type(daten) == "table" and type(daten.lines) == "table" then
+      for _, l in ipairs(daten.lines) do
+        zerlegen(zeilen, l.leftText)
+        zerlegen(zeilen, l.rightText)
       end
+    end
+  end
+  if #zeilen == 0 and GameTooltip and GameTooltip.SetUnitBuffByAuraInstanceID then
+    if lesen == nil then
+      local ok, t = pcall(CreateFrame, "GameTooltip", "CampfireBuddyLesen", nil, "GameTooltipTemplate")
+      lesen = ok and t or false
+    end
+    if lesen then
+      lesen:SetOwner(WorldFrame or UIParent, "ANCHOR_NONE")
+      if pcall(lesen.SetUnitBuffByAuraInstanceID, lesen, "player", instanz) then
+        for i = 1, (lesen.NumLines and lesen:NumLines()) or 0 do
+          local s = _G["CampfireBuddyLesenTextLeft" .. i]
+          if s and s.GetText then zerlegen(zeilen, s:GetText()) end
+        end
+      end
+      lesen:Hide()
     end
   end
   return zeilen
 end
 
--- Nach jedem Lesen der Buffs (außerhalb des Kampfes): Bonus-Buffs und Camp Benefits auswerten
-function LG:Pruefen()
-  if not self.aktiv or imKampf() then return end
-  local ids = ns.Buffs.ids or {}
-  local neu = false
-  -- Camp Benefits frisch bekommen: Tooltip lesen (einmal je Vergabe)
-  local cb = ids[ns.CAMP_BENEFITS]
-  if type(cb) == "table" and frisch(self, cb) and self.gelesen ~= cb.ende then
-    self.gelesen = cb.ende
-    for _, zeile in ipairs(tooltipZeilen(cb.instanz)) do
-      local o = LG.Erkennen(zeile)
-      if o then self:Merken(o, "lager") end
-    end
-    neu = true
+-- Camp Benefits lesen: { [Familie] = { o = Objekt, wert = Zahl } } und die Zeilen dazu. Je
+-- Vergabe einmal (gemerkt über die Ablaufzeit), im Kampf der letzte Stand.
+function LG:Benefits()
+  local cb = (ns.Buffs.ids or {})[ns.CAMP_BENEFITS]
+  if type(cb) ~= "table" then
+    self.benefits, self.benefitsEnde, self.benefitsZeilen = nil, nil, nil
+    return {}, {}
   end
+  if (self.benefits and self.benefitsEnde == cb.ende) or imKampf() then
+    return self.benefits or {}, self.benefitsZeilen or {}
+  end
+  local instanz = cb.instanz
+  if not instanz and C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+    local ok, a = pcall(C_UnitAuras.GetPlayerAuraBySpellID, ns.CAMP_BENEFITS)
+    if ok and type(a) == "table" and not geheim(a.auraInstanceID) then instanz = a.auraInstanceID end
+  end
+  local zeilen = tooltipZeilen(instanz)
+  local boni = {}
+  for _, z in ipairs(zeilen) do
+    local o = LG.Erkennen(z)
+    if o and o.art ~= "feuer" then
+      local wert = tonumber(string.match(z, ":%D*(%d+)"))
+      local alt = boni[o.familie]
+      if not alt or LG.Rang(o) > LG.Rang(alt.o) then boni[o.familie] = { o = o, wert = wert } end
+    end
+  end
+  -- Nur merken, wenn der Tooltip schon Zeilen hatte (gleich nach der Vergabe kann er leer sein)
+  if #zeilen > 0 then self.benefits, self.benefitsEnde, self.benefitsZeilen = boni, cb.ende, zeilen end
+  return boni, zeilen
+end
+
+-- Camp Benefits gerade an diesem Feuer bekommen? Seit dem Ankommen, oder in den letzten zwei
+-- Minuten (man sitzt eine Minute, dabei kann "Campfire Nearby" kurz fehlen).
+local function hierBekommen(self, cb)
+  if (cb.dauer or 0) <= 0 then return false end
+  local vergeben = cb.ende - cb.dauer
+  return vergeben >= (self.seit or 0) - 90 or vergeben >= ns.jetzt() - 120
+end
+
+-- Nach jedem Lesen der Buffs (außerhalb des Kampfes): Camp Benefits auswerten
+local nochmal = 0
+function LG:Pruefen()
+  if imKampf() then return end
+  local ids = ns.Buffs.ids or {}
+  local cb = ids[ns.CAMP_BENEFITS]
+  local boni, zeilen = self:Benefits()
+  if not self.aktiv then return end
+  local neu = false
+  -- Gerade an diesem Feuer bekommen: die Objekte darin stehen hier (einmal je Vergabe)
+  if type(cb) == "table" and hierBekommen(self, cb) and self.gelesen ~= cb.ende then
+    if #zeilen > 0 then
+      self.gelesen = cb.ende
+      for _, b in pairs(boni) do self:Merken(b.o, "lager") end
+      neu = true
+    elseif nochmal < 5 and C_Timer and C_Timer.After then
+      -- Tooltip noch leer: gleich noch einmal versuchen
+      nochmal = nochmal + 1
+      C_Timer.After(1, function() LG:Pruefen() end)
+    end
+  end
+  if type(cb) == "table" and self.gelesen == cb.ende then nochmal = 0 end
   -- Bonus-Buffs: Familie da, Stufe unbekannt (nur, wenn nichts Genaueres bekannt ist)
   for fam, f in pairs(O.FAMILIE) do
     local a = f.aura and ids[f.aura]
@@ -241,7 +322,7 @@ function LG:Pruefen()
     end
   end
   if neu then self:Geaendert() end
-  if type(cb) == "table" and frisch(self, cb) and not self.tipp then
+  if type(cb) == "table" and self.gelesen == cb.ende and not self.tipp then
     self.tipp = true
     self:Tipp()
   end
@@ -251,6 +332,13 @@ end
 
 local function gruppenEinheit(einheit)
   return einheit == "player" or (type(einheit) == "string" and (string.match(einheit, "^party%d") or string.match(einheit, "^raid%d")))
+end
+
+-- Fremde in Sichtweite (Namensplakette, Ziel, Fokus, Maus): Wer am selben Feuer steht, ist nah
+-- genug, dass das Spiel ihn so kennt. Lagerfeuer stehen mindestens 100 Meter auseinander.
+local function fremdNah(einheit)
+  return type(einheit) == "string" and (string.match(einheit, "^nameplate%d") ~= nil or einheit == "target"
+    or einheit == "focus" or einheit == "mouseover")
 end
 
 local function naheBei(einheit)
@@ -266,7 +354,8 @@ local function name(einheit)
 end
 
 function LG:Gezaubert(einheit, spellID)
-  if not gruppenEinheit(einheit) or geheim(spellID) or type(spellID) ~= "number" then return end
+  local gruppe = gruppenEinheit(einheit)
+  if not (gruppe or (self.aktiv and fremdNah(einheit))) or geheim(spellID) or type(spellID) ~= "number" then return end
   local o = platzKarte()[spellID]
   if not o then return end
   local wer = name(einheit)
@@ -278,18 +367,18 @@ function LG:Gezaubert(einheit, spellID)
       self.aktiv = true
       self:FeuerSetzen(o, "cast", wer)
     end
-  elseif self.aktiv and naheBei(einheit) then
+  elseif self.aktiv and (not gruppe or naheBei(einheit)) then
     self:Merken(o, "cast", wer)
   end
 end
 
 ns.ereignis("UNIT_SPELLCAST_SUCCEEDED", function(einheit, _, spellID) LG:Gezaubert(einheit, spellID) end)
 
--- Maus über einem Spielobjekt am Feuer: nur Lagerfeuer zählen (Größe des Lagers)
+-- Maus über einem Spielobjekt am Feuer: Feuer und Objekte mit eindeutigem Namen
 function LG:Objekt(text)
   if not self.aktiv or imKampf() then return end
   local o = LG.Erkennen(text)
-  if o and o.art == "feuer" then self:Merken(o, "maus") end
+  if o and not o.mehrdeutig then self:Merken(o, "maus") end
 end
 
 ns.beimStart(function()
@@ -356,14 +445,17 @@ end
 function LG:BoniUebersicht(berufe)
   berufe = berufe or O.Berufe()
   local ids = ns.Buffs.ids or {}
+  local benefits = self:Benefits()
   local t = {}
   for _, fam in ipairs(O.BONUS_REIHE) do
     local f, basis = O.FAMILIE[fam], O.BASIS[fam]
     local a = f.aura and ids[f.aura]
+    local b = benefits[fam]
     local best, z = O.Bestes(fam, berufe)
     local e = { fam = fam, bonus = f.bonus, basis = basis, best = best, bestZustand = z,
       konflikt = O.Konflikt(basis), da = self.aktiv and self.objekte[fam] or nil }
-    if type(a) == "table" then e.zustand, e.punkte = "aktiv", a.punkte
+    if b then e.zustand, e.punkte, e.von = "aktiv", b.wert, b.o
+    elseif type(a) == "table" then e.zustand, e.punkte = "aktiv", a.punkte
     elseif e.konflikt then e.zustand = "klasse"
     elseif e.da then e.zustand = "da"
     elseif z == "vorrat" or z == "bereit" then e.zustand = "du"
@@ -377,15 +469,10 @@ end
 -- Boni, die gerade wirken, mit Wert: { { name, punkte, o } }
 function LG:Boni()
   local t = {}
-  local ids = ns.Buffs.ids or {}
-  for _, o in ipairs(O.LISTE) do
-    local f = O.FAMILIE[o.familie]
-    if O.BASIS[o.familie] == o and f.aura and o.familie ~= "zelt" then
-      local a = ids[f.aura]
-      if type(a) == "table" then
-        table.insert(t, { name = a.name or O.Anzeige(o), punkte = a.punkte, o = o })
-      end
-    end
+  local benefits = self:Benefits()
+  for _, fam in ipairs(O.BONUS_REIHE) do
+    local b = benefits[fam]
+    if b then table.insert(t, { name = O.FAMILIE[fam].bonus, punkte = b.wert, o = b.o }) end
   end
   return t
 end

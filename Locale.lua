@@ -137,6 +137,7 @@ L.CMD_BAR = "show or hide the bar"
 L.CMD_LOCK = "lock or unlock the bar"
 L.CMD_TEST = "show the reminder once"
 L.CMD_HELP = "show this list"
+L.CMD_DEBUG = "show what Campfire Buddy reads at this camp (for bug reports)"
 L.MSG_LOCKED = "Bars locked."
 L.MSG_UNLOCKED = "Bars unlocked, drag them where you like."
 
@@ -153,6 +154,7 @@ L.KIT_NOT_LEARNED = "recipe not learned"
 L.KIT_BONUS_ACTIVE = "You already have this bonus. Still good for others at the fire."
 L.KIT_BONUS_ACTIVE_SHORT = "Bonus active"
 L.STATUS_BONUSES = "From your camp: %s"
+L.BONUS_NAME_VALUE = "%s +%d"
 
 -- Reiter Camp: Lager-Erkennung
 L.TAB_CAMP = "Camp"

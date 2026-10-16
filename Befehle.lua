@@ -23,6 +23,25 @@ ns.befehl("show", L.CMD_SHOW, function() ns.Show:Vorschau() end)
 
 ns.befehl("play", L.CMD_PLAY, function() ns.Spiel:Menue(false) end)
 
+-- Was Campfire Buddy an diesem Lager liest, für Fehlerberichte
+ns.befehl("debug", L.CMD_DEBUG, function()
+  local LG = ns.Lager
+  local gesamt, belegt = LG:Plaetze()
+  ns.melde(string.format("Camp: %s, fire %s, %s slots, %d objects", LG.aktiv and "yes" or "no",
+    LG.feuer and (ns.Objekte.Anzeige(LG.feuer.o)) or "?", tostring(gesamt or "?"), belegt))
+  for fam, e in pairs(LG.objekte) do
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("  %s: %s (%s%s)", fam, (ns.Objekte.Anzeige(e.o)), e.quelle or "?", e.wer and (", " .. e.wer) or ""))
+  end
+  local cb = (ns.Buffs.ids or {})[ns.CAMP_BENEFITS]
+  local boni, zeilen = LG:Benefits()
+  ns.melde(string.format("Camp Benefits: %s, aura instance %s, %d tooltip lines", cb and "yes" or "no",
+    tostring(cb and cb.instanz), #zeilen))
+  for _, z in ipairs(zeilen) do DEFAULT_CHAT_FRAME:AddMessage("  | " .. z) end
+  for fam, b in pairs(boni) do
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("  -> %s: %s %s", fam, (ns.Objekte.Anzeige(b.o)), tostring(b.wert)))
+  end
+end)
+
 ns.befehl("help", L.CMD_HELP, function()
   ns.melde(L.COMMANDS)
   for _, wort in ipairs(ns.befehlsListe) do

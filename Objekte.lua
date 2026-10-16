@@ -44,6 +44,8 @@ O.FAMILIE = {
 -- art: "feuer" (Lagerfeuer, braucht kein Feuer in der Nähe) oder "objekt" (am Lagerfeuer)
 -- mats: { { Gegenstands-ID, Menge }, ... }, werkzeug: Gegenstand, der nicht verbraucht wird
 -- fraktion: nur für diese Fraktion (Token aus UnitFactionGroup)
+-- mehrdeutig: heißt wie ein normales Ding im Dorf (Amboss, Gerbgestell, Spinnrad, Webstuhl), wird
+-- deshalb nie über die Maus erkannt (Lager.lua)
 O.LISTE = {
   { spell = 1229737, item = 279981, platz = 1307227, plaetze = 3, familie = "feuer", beruf = KOCHEN, stufe = 1, art = "feuer",
     mats = { { 4470, 1 } }, werkzeug = 4471,
@@ -62,7 +64,7 @@ O.LISTE = {
 
   { spell = 1230171, item = 279944, familie = "schleifen", beruf = SCHMIED, stufe = 20,
     mats = { { 2835, 1 }, { 2840, 1 } }, name = L.OBJ_SHARPENING_WHEEL, info = L.OBJ_SHARPENING_WHEEL_INFO },
-  { spell = 1263041, item = 279988, familie = "schleifen", beruf = SCHMIED, stufe = 140,
+  { spell = 1263041, item = 279988, mehrdeutig = true, familie = "schleifen", beruf = SCHMIED, stufe = 140,
     mats = { { 2841, 5 }, { 3478, 2 }, { 2319, 2 } }, name = L.OBJ_ANVIL, info = L.OBJ_ANVIL_INFO },
   { spell = 1263073, item = 279955, familie = "schleifen", beruf = SCHMIED, stufe = 300,
     mats = { { 273127, 1 }, { 12359, 5 }, { 8170, 2 } }, name = L.OBJ_MASTER_FORGE, info = L.OBJ_MASTER_FORGE_INFO },
@@ -104,7 +106,7 @@ O.LISTE = {
 
   { spell = 1229432, item = 279978, familie = "zelt", beruf = LEDER, stufe = 20,
     mats = { { 2318, 5 } }, name = L.OBJ_TENT, info = L.OBJ_TENT_INFO },
-  { spell = 1263031, item = 279941, familie = "zelt", beruf = LEDER, stufe = 140,
+  { spell = 1263031, item = 279941, mehrdeutig = true, familie = "zelt", beruf = LEDER, stufe = 140,
     mats = { { 2319, 5 }, { 2321, 3 }, { 4470, 2 } }, name = L.OBJ_TANNING_RACK, info = L.OBJ_TANNING_RACK_INFO },
   { spell = 1263079, item = 279945, familie = "zelt", beruf = LEDER, stufe = 300,
     mats = { { 273130, 1 }, { 8170, 5 }, { 14341, 1 } }, name = L.OBJ_SEWING_MACHINE, info = L.OBJ_SEWING_MACHINE_INFO },
@@ -128,9 +130,9 @@ O.LISTE = {
     mats = { { 2996, 1 }, { 2320, 1 } }, name = L.OBJ_BANNER, info = L.OBJ_BANNER_INFO },
   { spell = 1229504, item = 279972, familie = "banner", fraktion = "Horde", beruf = SCHNEIDER, stufe = 20,
     mats = { { 2996, 1 }, { 2320, 1 } }, name = L.OBJ_BANNER, info = L.OBJ_BANNER_INFO },
-  { spell = 1263032, item = 279943, familie = "banner", beruf = SCHNEIDER, stufe = 140,
+  { spell = 1263032, item = 279943, mehrdeutig = true, familie = "banner", beruf = SCHNEIDER, stufe = 140,
     mats = { { 4470, 2 }, { 4305, 5 }, { 2321, 3 } }, name = L.OBJ_SPINNING_WHEEL, info = L.OBJ_SPINNING_WHEEL_INFO },
-  { spell = 1263080, item = 279959, familie = "banner", beruf = SCHNEIDER, stufe = 300,
+  { spell = 1263080, item = 279959, mehrdeutig = true, familie = "banner", beruf = SCHNEIDER, stufe = 300,
     mats = { { 273131, 1 }, { 14048, 4 }, { 4470, 4 } }, name = L.OBJ_LOOM, info = L.OBJ_LOOM_INFO },
 
   { spell = 1262978, item = 279957, familie = "festmahl", beruf = KOCHEN, stufe = 140,
@@ -426,6 +428,8 @@ end
 -- Buff-Liste liest Buffs.lua außerhalb des Kampfes. Fehlt der Buff dort (verborgene Auren),
 -- wird einzeln gefragt, ebenfalls nur außerhalb des Kampfes.
 function O.BonusAktiv(o)
+  -- In Forever stehen alle Boni im Tooltip von Camp Benefits (Lager.lua)
+  if ns.Lager and ns.Lager:Benefits()[o.familie] then return true end
   local fam = O.FAMILIE[o.familie]
   local id = fam and fam.aura
   if not id then return false end
@@ -439,15 +443,11 @@ function O.BonusAktiv(o)
   return false
 end
 
--- Namen der Lager-Boni, die gerade wirken (vom Spiel, also in der Sprache des Clients)
+-- Lager-Boni, die gerade wirken, mit Wert ("Stamina +3"), aus dem Tooltip von Camp Benefits
 function O.AktiveBoni()
   local namen = {}
-  for _, o in ipairs(O.LISTE) do
-    local fam = O.FAMILIE[o.familie]
-    if O.BASIS[o.familie] == o and fam.aura and fam.aura ~= O.FAMILIE.zelt.aura and O.BonusAktiv(o) then
-      local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(fam.aura)
-      table.insert(namen, name or O.Anzeige(o))
-    end
+  for _, b in ipairs(ns.Lager and ns.Lager:Boni() or {}) do
+    table.insert(namen, b.punkte and string.format(ns.L.BONUS_NAME_VALUE, b.name, b.punkte) or b.name)
   end
   return namen
 end

@@ -8,10 +8,12 @@
 
 - **The window now looks like a real WoW window**: portrait frame with the murloc, title bar, inset panel, tabs along the bottom, red buttons, the game's checkboxes and radio buttons, a status bar like the game's own, and gold headings. The buff bar and the Camp Kit keep their look.
 
-- **Camp tab: know your camp**: which campfire it is (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, an overview of all ten camp bonuses (active with their values, at the fire, covered by a class buff, or missing), and what you can still add or upgrade. Campfire Buddy learns this from your Camp Benefits, the bonus buffs, objects placed by you or your group, and the fire you hover over. It never sends anything.
+- **Camp tab: know your camp**: which campfire it is (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, an overview of all ten camp bonuses (active with their values, at the fire, covered by a class buff, or missing), and what you can still add or upgrade. Campfire Buddy learns this from your Camp Benefits, objects placed by you, your group or players nearby, and the fire and objects you hover over. It never sends anything.
 - **Camp tip**: after a minute at the fire, one chat line tells you what this camp can still use from your bags or crafts.
 - **Camp Kit knows the camp**: objects the camp still needs come first and get the ember border. Objects already there, or replaced by a better one, stay plain.
-- **Active camp bonuses** on the Status page. Read by spell ID, so it works in every game language.
+- **Active camp bonuses** on the Status page and in the Camp tab, read from your Camp Benefits with their values (for example Stamina +3, Attack power +12).
+- Objects at the camp also come from players nearby who place them, and from hovering over objects with a clear name. Objects named like everyday things in town (Anvil, Loom, Spinning Wheel, Tanning Rack) are never taken from hovering.
+- `/campfire debug` shows in chat what Campfire Buddy reads at the camp, for bug reports.
 
 - **All camp objects**: every profession now has its tier 2 and tier 3 objects (skill 140 and 300), plus Cookie's Feast and the Iron Oven. The Camp Kit bar shows one button per bonus: your best object in the bags, or the best one you can build right now.
 - **Horde Faction Banner**: Horde characters now get their own banner recipe.

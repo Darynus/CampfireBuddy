@@ -105,7 +105,8 @@ function B:Lesen()
     self.ids, self.namen = ids, namen
     for _, a in ipairs(alle) do
       if verfolgt[a.id] then neu[a.id] = a end
-      if a.id == ns.CAMPFIRE_NEARBY then feuer = true end
+      -- Am Feuer: "Campfire Nearby" oder der Countdown beim Sitzen (dabei kann Nearby fehlen)
+      if a.id == ns.CAMPFIRE_NEARBY or ns.COUNTDOWN_IDS[a.id] then feuer = true end
       if B.IstEssen(a) and laenger(a, essen) then essen = a end
     end
   else

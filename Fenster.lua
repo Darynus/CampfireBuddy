@@ -55,8 +55,8 @@ local function bauenStatus()
   f.zeit:SetPoint("TOPLEFT", 52, -20)
   f.ende = S.schrift(f, "GameFontHighlightSmall", F.leise)
   f.ende:SetPoint("TOPLEFT", 52, -42)
-  f.balken = S.balken(f, B, 10, true)
-  f.balken:SetPoint("TOPLEFT", 0, -66)
+  f.balken = S.balken(f, B, 16, true)
+  f.balken:SetPoint("TOPLEFT", 0, -64)
   f.hilfe = S.absatz(f, B, F.leise)
   f.hilfe:SetPoint("TOPLEFT", 0, -84)
 
@@ -357,6 +357,7 @@ end
 -- Seite: Camp (dieses Lager: Feuer, Plätze, was steht, was der Char beisteuern kann) --------
 
 local MAX_PLAETZE = 10
+local RAND_GRAU = { 0.62, 0.64, 0.70, 1 }   -- Rand der Kästen im Look des Spiels
 local QUELLE = { cast = L.CAMP_SRC_CAST, lager = L.CAMP_SRC_LIST, maus = L.CAMP_SRC_SEEN, bonus = L.CAMP_SRC_BONUS }
 
 local function bauenLager()
@@ -369,12 +370,18 @@ local function bauenLager()
   -- Plätze am Feuer: belegt mit Symbol, frei als leerer Kasten
   f.plaetze = {}
   for i = 1, MAX_PLAETZE do
-    local p = S.kasten(f, "Frame", F.flaeche, F.rand)
-    p:SetSize(30, 30)
-    p:SetPoint("TOPLEFT", (i - 1) * 34, -44)
+    -- Platz wie im Spiel: Rand der Auswahllisten, innen der Hintergrund eines Taschenplatzes
+    local p = S.spielKasten(f, "Frame")
+    p:SetSize(32, 32)
+    p:SetPoint("TOPLEFT", (i - 1) * 36, -44)
+    p.leer = p:CreateTexture(nil, "BACKGROUND", nil, 1)
+    p.leer:SetPoint("TOPLEFT", 3, -3)
+    p.leer:SetPoint("BOTTOMRIGHT", -3, 3)
+    p.leer:SetTexture("Interface\\Buttons\\UI-Slot-Background")
+    p.leer:SetTexCoord(0, 0.640625, 0, 0.640625)
     p.icon = p:CreateTexture(nil, "ARTWORK")
-    p.icon:SetPoint("TOPLEFT", 2, -2)
-    p.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    p.icon:SetPoint("TOPLEFT", 3, -3)
+    p.icon:SetPoint("BOTTOMRIGHT", -3, 3)
     p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     p:EnableMouse(true)
     S.tooltip(p, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) or L.CAMP_SLOT_FREE end, function(self)
@@ -488,10 +495,10 @@ local function bauenLager()
         p.icon:SetTexture(icon)
         p.icon:SetDesaturated(not e.genau)
         p.icon:Show()
-        S.randFarbe(p, e.genau and F.erfolg or F.rand)
+        S.randFarbe(p, e.genau and F.erfolg or RAND_GRAU)
       else
         p.icon:Hide()
-        S.randFarbe(p, F.rand)
+        S.randFarbe(p, RAND_GRAU)
       end
     end
     self.mehr:ClearAllPoints()
