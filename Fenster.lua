@@ -1,5 +1,8 @@
--- Hauptfenster: Status, Buffs, Camp kit, Settings, Help.
+-- Hauptfenster: Status, Camp, Buffs, Camp kit, Settings, Help.
 -- Öffnen mit /campfire, Rechtsklick auf die Leiste, Minikarten-Knopf oder Optionen-Menü.
+-- Aussehen wie die Fenster des Spiels (Patrick, 16. Okt: "was Authentisches"): Porträtrahmen mit
+-- Titelleiste, versenkte Innenfläche, Reiter unten, rote Knöpfe, Haken und Auswahlknöpfe aus dem
+-- Client. Fehlt eine dieser Vorlagen, baut das Fenster sich wie früher flach selbst.
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 local F, rgba = S.F, S.rgba
@@ -7,14 +10,17 @@ local F, rgba = S.F, S.rgba
 local W = { seiten = {} }
 ns.Fenster = W
 
+-- Maße: werden in W:Bauen je nach Aufbau gesetzt (echt oder flach)
 local BREITE, HOEHE = 640, 460
 local SEITE = 150
 local X = SEITE + 16
 local B = BREITE - X - 16
 local OBEN = -60
+local UNTEN = 16
 
 local REITER = {
   { schluessel = "status", text = L.TAB_STATUS },
+  { schluessel = "lager", text = L.TAB_CAMP },
   { schluessel = "buffs", text = L.TAB_BUFFS },
   { schluessel = "kit", text = L.TAB_KIT },
   { schluessel = "einstellungen", text = L.TAB_SETTINGS },
@@ -24,7 +30,9 @@ local REITER = {
 local function seite(schluessel)
   local f = CreateFrame("Frame", nil, W.rahmen)
   f:SetPoint("TOPLEFT", X, OBEN)
-  f:SetSize(B, HOEHE + OBEN - 16)
+  f:SetSize(B, HOEHE + OBEN - UNTEN)
+  -- Über der versenkten Fläche des echten Fensters
+  if W.echt then f:SetFrameLevel((W.rahmen:GetFrameLevel() or 1) + 4) end
   f:Hide()
   W.seiten[schluessel] = f
   return f
@@ -47,7 +55,7 @@ local function bauenStatus()
   f.zeit:SetPoint("TOPLEFT", 52, -20)
   f.ende = S.schrift(f, "GameFontHighlightSmall", F.leise)
   f.ende:SetPoint("TOPLEFT", 52, -42)
-  f.balken = S.balken(f, B, 10)
+  f.balken = S.balken(f, B, 10, true)
   f.balken:SetPoint("TOPLEFT", 0, -66)
   f.hilfe = S.absatz(f, B, F.leise)
   f.hilfe:SetPoint("TOPLEFT", 0, -84)
@@ -93,7 +101,9 @@ local function bauenStatus()
       self.zeit:SetTextColor(rgba(F.akzent))
       self.ende:SetText(rest and string.format(L.ENDS_AT, uhrzeit(rest)) or "")
       self.balken:Setzen(rest and lager.dauer > 0 and rest / lager.dauer or 1, 0)
-      self.hilfe:SetText("")
+      -- Welche Boni das Lager gerade gibt (Namen vom Spiel, also in jeder Sprache richtig)
+      local boni = ns.Objekte.AktiveBoni()
+      self.hilfe:SetText(#boni > 0 and string.format(L.STATUS_BONUSES, table.concat(boni, ", ")) or "")
     else
       self.icon:SetTexture(S.LAGER)
       self.icon:SetDesaturated(true)
@@ -247,7 +257,7 @@ end
 -- Seite: Camp kit (alle Lager-Objekte, wer sie baut, was sie geben, Material) --------------
 
 local O = ns.Objekte
-local REIHENFOLGE = { vorrat = 0, bereit = 1, material = 2, stufe = 3, beruf = 4 }
+local REIHENFOLGE = { vorrat = 0, bereit = 1, material = 2, lernen = 3, stufe = 4, beruf = 5 }
 
 local function bauenKit()
   local f = seite("kit")
@@ -278,7 +288,18 @@ local function bauenKit()
     S.tooltip(z, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) end, function(self)
       local e = self.eintrag
       if not e then return nil end
-      return e.o.info .. "\n" .. O.MaterialText(e.o) .. "\n" .. (e.o.lernen or L.LEARN_TRAINER_PROF)
+      local zeilen = { e.o.info }
+      local basis = O.BASIS[e.o.familie]
+      if basis and basis ~= e.o and e.o.art ~= "feuer" then
+        table.insert(zeilen, string.format(L.KIT_REPLACES, (O.Anzeige(basis))))
+      end
+      local gegen = O.KonfliktText(e.o)
+      if gegen then table.insert(zeilen, string.format(L.KIT_NO_STACK, gegen)) end
+      local konflikt = O.Konflikt(e.o)
+      if konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, konflikt)) end
+      table.insert(zeilen, O.MaterialText(e.o))
+      table.insert(zeilen, e.o.lernen or L.LEARN_TRAINER_PROF)
+      return table.concat(zeilen, "\n")
     end)
     -- Craften direkt aus der Liste: ein Klick, ein Stück (erster Klick öffnet sonst den Beruf)
     z.bauen = S.textKnopf(z, L.KIT_BTN_CRAFT, 70, function()
@@ -291,12 +312,14 @@ local function bauenKit()
   end)
   f.liste:SetPoint("TOPLEFT", 0, -64)
 
-  local FARBE = { vorrat = F.erfolg, bereit = F.erfolg, material = F.hinweis, stufe = F.leise, beruf = F.leise }
+  local FARBE = { vorrat = F.erfolg, bereit = F.erfolg, material = F.hinweis, lernen = F.leise, stufe = F.leise, beruf = F.leise }
   function f:Aktualisieren()
     local berufe = O.Berufe()
     local daten = {}
     for i, o in ipairs(O.LISTE) do
-      table.insert(daten, { o = o, nr = i, zustand = O.Zustand(o, berufe), wert = berufe[o.beruf] })
+      if O.Passt(o) then
+        table.insert(daten, { o = o, nr = i, zustand = O.Zustand(o, berufe), wert = berufe[o.beruf] })
+      end
     end
     table.sort(daten, function(a, b)
       if a.zustand ~= b.zustand then return REIHENFOLGE[a.zustand] < REIHENFOLGE[b.zustand] end
@@ -312,11 +335,15 @@ local function bauenKit()
       if e.zustand == "vorrat" then zustand = string.format(L.KIT_STATE_BAGS, (O.Vorrat(e.o)))
       elseif e.zustand == "bereit" then zustand = L.KIT_READY
       elseif e.zustand == "material" then zustand = L.KIT_NEED_MATS
+      elseif e.zustand == "lernen" then zustand = L.KIT_NOT_LEARNED
       elseif e.zustand == "stufe" then zustand = string.format(L.KIT_NEED_SKILL, beruf, e.o.stufe, e.wert or 0)
       else zustand = string.format(L.KIT_NEED_PROF, beruf, e.o.stufe) end
       z.zustand:SetText(zustand)
       z.zustand:SetTextColor(rgba(FARBE[e.zustand]))
-      z.info:SetText(e.o.info)
+      local konflikt = O.Konflikt(e.o)
+      local aktiv = not konflikt and O.BonusAktiv(e.o)
+      z.info:SetText(konflikt and string.format(L.KIT_CONFLICT_SHORT, konflikt) or (aktiv and L.KIT_BONUS_ACTIVE_SHORT) or e.o.info)
+      z.info:SetTextColor(rgba(konflikt and F.hinweis or (aktiv and F.erfolg) or F.leise))
       z.mats:SetText(string.format(L.KIT_PROF, beruf, e.o.stufe) .. "   " .. O.MaterialText(e.o))
       local kann = e.zustand == "bereit" or (e.zustand == "vorrat" and O.MaterialDa(e.o))
       z.bauen:SetShown(kann and true or false)
@@ -324,6 +351,200 @@ local function bauenKit()
         z.bauen.text:SetText(ns.Kit.OffenerBeruf() == e.o.beruf and L.KIT_BTN_CRAFT or L.KIT_BTN_OPEN)
       end
     end, "")
+  end
+end
+
+-- Seite: Camp (dieses Lager: Feuer, Plätze, was steht, was der Char beisteuern kann) --------
+
+local MAX_PLAETZE = 10
+local QUELLE = { cast = L.CAMP_SRC_CAST, lager = L.CAMP_SRC_LIST, maus = L.CAMP_SRC_SEEN, bonus = L.CAMP_SRC_BONUS }
+
+local function bauenLager()
+  local f = seite("lager")
+  local LG = ns.Lager
+  S.ueberschrift(f, L.CAMP_TITLE):SetPoint("TOPLEFT", 0, 0)
+  f.feuer = S.absatz(f, B, F.text, "GameFontHighlight")
+  f.feuer:SetPoint("TOPLEFT", 0, -16)
+
+  -- Plätze am Feuer: belegt mit Symbol, frei als leerer Kasten
+  f.plaetze = {}
+  for i = 1, MAX_PLAETZE do
+    local p = S.kasten(f, "Frame", F.flaeche, F.rand)
+    p:SetSize(30, 30)
+    p:SetPoint("TOPLEFT", (i - 1) * 34, -44)
+    p.icon = p:CreateTexture(nil, "ARTWORK")
+    p.icon:SetPoint("TOPLEFT", 2, -2)
+    p.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    p:EnableMouse(true)
+    S.tooltip(p, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) or L.CAMP_SLOT_FREE end, function(self)
+      local e = self.eintrag
+      if not e then return nil end
+      local quelle = QUELLE[e.quelle] or ""
+      if e.quelle == "cast" and e.wer then quelle = string.format(L.CAMP_SRC_CAST_BY, e.wer) end
+      return quelle
+    end)
+    f.plaetze[i] = p
+  end
+  f.mehr = S.schrift(f, "GameFontHighlightLarge", F.leise)
+  f.mehr:SetPoint("LEFT", f.plaetze[1], "RIGHT", 4, 0)
+
+  -- Alle Lager-Boni in zwei Spalten: Name links, Zustand rechts, Einzelheiten im Tooltip
+  S.ueberschrift(f, L.CAMP_BONUSES):SetPoint("TOPLEFT", 0, -88)
+  f.boni = {}
+  local spalte = math.floor((B - 16) / 2)
+  for i = 1, #O.BONUS_REIHE do
+    local b = CreateFrame("Frame", nil, f)
+    b:SetSize(spalte, 19)
+    b:SetPoint("TOPLEFT", ((i - 1) % 2) * (spalte + 16), -106 - math.floor((i - 1) / 2) * 19)
+    b:EnableMouse(true)
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(16, 16)
+    b.icon:SetPoint("LEFT", 0, 0)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.name = S.schrift(b, "GameFontHighlightSmall", F.text)
+    b.name:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
+    b.zustand = S.schrift(b, "GameFontHighlightSmall", F.leise)
+    b.zustand:SetPoint("RIGHT", -4, 0)
+    S.tooltip(b, function(self) return self.eintrag and self.eintrag.bonus end, function(self)
+      local e = self.eintrag
+      if not e then return nil end
+      local namen = {}
+      for _, o in ipairs(O.LISTE) do
+        if o.familie == e.fam and O.Passt(o) then table.insert(namen, (O.Anzeige(o))) end
+      end
+      local zeilen = { string.format(L.BONUS_FROM, table.concat(namen, ", ")) }
+      if e.zustand == "aktiv" then table.insert(zeilen, L.BONUS_TIP_ACTIVE) end
+      if e.zustand == "da" then table.insert(zeilen, L.BONUS_TIP_AT_FIRE) end
+      if e.konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, e.konflikt)) end
+      if e.best then
+        local zustand = ({ vorrat = L.CAMP_STATE_BAGS, bereit = L.CAMP_STATE_CRAFT, material = L.KIT_NEED_MATS })[e.bestZustand] or ""
+        table.insert(zeilen, string.format(L.BONUS_TIP_YOURS, (O.Anzeige(e.best)), zustand))
+      else
+        table.insert(zeilen, L.BONUS_TIP_NONE)
+      end
+      return table.concat(zeilen, "\n")
+    end)
+    f.boni[i] = b
+  end
+
+  S.ueberschrift(f, L.CAMP_YOU_CAN_ADD):SetPoint("TOPLEFT", 0, -212)
+  f.liste = S.liste(f, B, 38 * 4, 38, function(l)
+    local z = S.zeile(l)
+    z.icon = z:CreateTexture(nil, "ARTWORK")
+    z.icon:SetSize(28, 28)
+    z.icon:SetPoint("LEFT", 6, 0)
+    z.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    z.name = S.schrift(z, "GameFontHighlight", F.text)
+    z.name:SetPoint("TOPLEFT", 42, -4)
+    z.grund = S.schrift(z, "GameFontHighlightSmall", F.akzent)
+    z.grund:SetPoint("TOPLEFT", 42, -20)
+    z.grund:SetWidth(B - 140)
+    z.grund:SetJustifyH("LEFT")
+    z.grund:SetWordWrap(false)
+    z.zustand = S.schrift(z, "GameFontHighlightSmall", F.leise)
+    z.zustand:SetPoint("TOPRIGHT", -10, -6)
+    z.bauen = S.textKnopf(z, L.KIT_BTN_CRAFT, 70, function()
+      if z.eintrag then ns.Kit:Craften(z.eintrag.o) end
+    end)
+    z.bauen:SetHeight(20)
+    z.bauen:SetPoint("BOTTOMRIGHT", -8, 3)
+    S.tooltip(z, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) end, function(self)
+      local e = self.eintrag
+      if not e then return nil end
+      local zeilen = { e.o.info, O.MaterialText(e.o) }
+      local konflikt = O.Konflikt(e.o)
+      if konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, konflikt)) end
+      return table.concat(zeilen, "\n")
+    end)
+    return z
+  end)
+  f.liste:SetPoint("TOPLEFT", 0, -230)
+
+  local ZUSTAND = { vorrat = L.CAMP_STATE_BAGS, bereit = L.CAMP_STATE_CRAFT, material = L.KIT_NEED_MATS }
+  local FARBE = { vorrat = F.erfolg, bereit = F.erfolg, material = F.hinweis }
+  function f:Aktualisieren()
+    local gesamt, belegt = LG:Plaetze()
+    local feuerName = LG.feuer and (O.Anzeige(LG.feuer.o))
+    local anzahl = belegt == 1 and L.CAMP_OBJECTS_ONE or string.format(L.CAMP_OBJECTS_MANY, belegt)
+    if not LG.aktiv then
+      self.feuer:SetText(L.CAMP_NONE)
+    elseif feuerName then
+      self.feuer:SetText(string.format(L.CAMP_FIRE_KNOWN, feuerName, gesamt, anzahl))
+    else
+      self.feuer:SetText(string.format(L.CAMP_FIRE_UNKNOWN, anzahl))
+    end
+    -- Plätze: bei unbekannter Größe so viele wie bekannt, mindestens 3, dahinter ein Fragezeichen
+    local objekte = {}
+    for _, e in pairs(LG.objekte) do table.insert(objekte, e) end
+    table.sort(objekte, function(a, b) return tostring(a.o.spell) < tostring(b.o.spell) end)
+    local zeigen = LG.aktiv and (gesamt or math.max(3, #objekte)) or 0
+    for i, p in ipairs(self.plaetze) do
+      local e = objekte[i]
+      p:SetShown(i <= zeigen)
+      p.eintrag = e
+      if e then
+        local _, icon = O.Anzeige(e.o)
+        p.icon:SetTexture(icon)
+        p.icon:SetDesaturated(not e.genau)
+        p.icon:Show()
+        S.randFarbe(p, e.genau and F.erfolg or F.rand)
+      else
+        p.icon:Hide()
+        S.randFarbe(p, F.rand)
+      end
+    end
+    self.mehr:ClearAllPoints()
+    if zeigen > 0 then self.mehr:SetPoint("LEFT", self.plaetze[math.min(zeigen, MAX_PLAETZE)], "RIGHT", 6, 0) end
+    self.mehr:SetText(LG.aktiv and not gesamt and "?" or "")
+
+    local BONUS_TEXT = { klasse = L.BONUS_CLASS, da = L.BONUS_AT_FIRE, du = L.BONUS_YOU,
+      material = L.BONUS_MATS, fehlt = L.BONUS_MISSING }
+    local BONUS_FARBE = { aktiv = F.erfolg, klasse = F.hinweis, da = F.akzent, du = F.akzent,
+      material = F.leise, fehlt = F.leise }
+    for i, e in ipairs(LG:BoniUebersicht()) do
+      local b = self.boni[i]
+      b.eintrag = e
+      local _, icon = O.Anzeige(e.basis)
+      b.icon:SetTexture(icon)
+      b.icon:SetDesaturated(e.zustand == "fehlt" or e.zustand == "material")
+      b.name:SetText(e.bonus)
+      b.name:SetTextColor(rgba(e.zustand == "aktiv" and F.text or F.leise))
+      local text = BONUS_TEXT[e.zustand]
+      if e.zustand == "aktiv" then
+        if e.fam == "zelt" then text = L.BONUS_USED
+        elseif e.punkte and e.punkte > 0 then text = string.format(L.BONUS_VALUE, e.punkte)
+        else text = L.BONUS_ACTIVE end
+      end
+      b.zustand:SetText(text)
+      b.zustand:SetTextColor(rgba(BONUS_FARBE[e.zustand]))
+    end
+
+    local daten = LG:Vorschlaege()
+    self.liste:Setzen(daten, function(z, e)
+      local name, icon = O.Anzeige(e.o)
+      z.icon:SetTexture(icon)
+      z.icon:SetDesaturated(e.zustand == "material")
+      z.name:SetText(name)
+      local grund
+      if e.art == "besser" then
+        grund = string.format(L.CAMP_UPGRADE, (O.Anzeige(e.statt)))
+      elseif LG.aktiv then
+        grund = L.CAMP_MISSING
+      end
+      local bonus = O.FAMILIE[e.o.familie].bonus
+      grund = grund and bonus and string.format(L.CAMP_ADD_LINE, bonus, grund) or grund or bonus or e.o.info
+      local konflikt = O.Konflikt(e.o)
+      if konflikt then grund = grund .. "  " .. string.format(L.CAMP_ONLY_OTHERS, konflikt) end
+      z.grund:SetText(grund)
+      z.grund:SetTextColor(rgba(LG.aktiv and F.akzent or F.leise))
+      z.zustand:SetText(ZUSTAND[e.zustand] or "")
+      z.zustand:SetTextColor(rgba(FARBE[e.zustand] or F.leise))
+      z.bauen:SetShown(e.zustand == "bereit")
+      if e.zustand == "bereit" then
+        z.bauen.text:SetText(ns.Kit.OffenerBeruf() == e.o.beruf and L.KIT_BTN_CRAFT or L.KIT_BTN_OPEN)
+      end
+    end, LG.aktiv and L.CAMP_NOTHING_TO_ADD or L.CAMP_NOTHING_AT_ALL)
   end
 end
 
@@ -404,24 +625,63 @@ end
 
 -- Rahmen ---------------------------------------------------------------------------------
 
-function W:Bauen()
-  local r = S.kasten(UIParent, "Frame", F.grund, F.rand, "CampfireBuddyFrame")
-  self.rahmen = r
+-- Echter Aufbau: Porträtrahmen des Spiels, darin die versenkte Fläche, unten die Reiter
+local function bauenEcht(r)
+  BREITE, HOEHE = 640, 480
+  X, OBEN, UNTEN = 16, -72, 18
+  B = BREITE - X - 18
   r:SetSize(BREITE, HOEHE)
-  local pos = ns.db.fenster
-  if pos and pos.punkt then r:SetPoint(pos.punkt, UIParent, pos.punkt, pos.x, pos.y) else r:SetPoint("CENTER") end
-  r:SetFrameStrata("HIGH")
-  r:SetClampedToScreen(true)
-  r:EnableMouse(true)
-  r:SetMovable(true)
-  r:RegisterForDrag("LeftButton")
-  r:SetScript("OnDragStart", function(self) self:StartMoving() end)
-  r:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    local punkt, _, _, x, y = self:GetPoint()
-    ns.db.fenster = { punkt = punkt, x = x, y = y }
-  end)
-  if UISpecialFrames then table.insert(UISpecialFrames, "CampfireBuddyFrame") end
+  pcall(r.SetTitle, r, L.ADDON_NAME)
+  if r.SetPortraitToAsset then pcall(r.SetPortraitToAsset, r, S.MARKE[1]) end
+  -- Unser Lagerfeuer-Abzeichen auf dem Porträt
+  local halter = type(r.PortraitContainer) == "table" and r.PortraitContainer or r
+  local portrait = halter.portrait or r.portrait
+  if type(portrait) == "table" then S.abzeichen(halter, portrait, 20) end
+  local unter = S.schrift(r, "GameFontHighlightSmall")
+  unter:SetPoint("TOPLEFT", 66, -36)
+  unter:SetText(L.SUBTITLE)
+  local version = S.schrift(r, "GameFontDisableSmall")
+  version:SetPoint("TOPRIGHT", -14, -36)
+  version:SetText(L.BY_AUTHOR .. "   v" .. ns.VERSION)
+  local innen = S.vorlage("Frame", r, "InsetFrameTemplate")
+  if innen then
+    innen:SetFrameLevel((r:GetFrameLevel() or 1) + 1)
+    innen:SetPoint("TOPLEFT", 4, -60)
+    innen:SetPoint("BOTTOMRIGHT", -6, 4)
+  end
+  -- Reiter unten am Fenster. Die neue Vorlage (mit LeftActive) steht mit Abstand nebeneinander,
+  -- die alte überlappt wie im Charakterfenster.
+  r.Tabs = {}
+  local vorher
+  for i, t in ipairs(REITER) do
+    local tab = S.vorlage("Button", r, "PanelTabButtonTemplate", "CampfireBuddyFrameTab" .. i)
+    if tab then
+      tab:SetText(t.text)
+    else
+      tab = S.textKnopf(r, t.text, 90, function() end)
+    end
+    if tab.SetID then tab:SetID(i) end
+    if vorher then
+      if tab.LeftActive then tab:SetPoint("TOPLEFT", vorher, "TOPRIGHT", 3, 0) else tab:SetPoint("LEFT", vorher, "RIGHT", -15, 0) end
+    else
+      tab:SetPoint("TOPLEFT", r, "BOTTOMLEFT", 12, 2)
+    end
+    if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 0) end
+    tab.schluessel = t.schluessel
+    tab:SetScript("OnClick", function()
+      if PlaySound and SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then pcall(PlaySound, SOUNDKIT.IG_CHARACTER_INFO_TAB) end
+      W:Zeigen(t.schluessel)
+    end)
+    r.Tabs[i] = tab
+    vorher = tab
+  end
+  if PanelTemplates_SetNumTabs then pcall(PanelTemplates_SetNumTabs, r, #REITER) end
+  W.reiter = r.Tabs
+end
+
+-- Flacher Aufbau wie früher: Kopfzeile, Reiter links
+local function bauenFlach(r)
+  r:SetSize(BREITE, HOEHE)
   S.schatten(r)
   S.kopf(r, L.SUBTITLE)
 
@@ -436,7 +696,7 @@ function W:Bauen()
   leiste:SetPoint("BOTTOMLEFT", 1, 1)
   leiste:SetWidth(SEITE)
   leiste:SetColorTexture(rgba(F.seite))
-  self.reiter = {}
+  W.reiter = {}
   for i, t in ipairs(REITER) do
     local b = S.zeile(r)
     b:SetSize(SEITE, 30)
@@ -446,8 +706,31 @@ function W:Bauen()
     b.text:SetText(t.text)
     b.schluessel = t.schluessel
     b:SetScript("OnClick", function() S.klick() W:Zeigen(t.schluessel) end)
-    self.reiter[i] = b
+    W.reiter[i] = b
   end
+end
+
+function W:Bauen()
+  local r = S.vorlage("Frame", UIParent, "PortraitFrameTemplate", "CampfireBuddyFrame")
+  self.echt = r ~= nil and r.SetTitle ~= nil
+  if not self.echt then r = S.kasten(UIParent, "Frame", F.grund, F.rand, "CampfireBuddyFrame") end
+  self.rahmen = r
+  local pos = ns.db.fenster
+  if pos and pos.punkt then r:SetPoint(pos.punkt, UIParent, pos.punkt, pos.x, pos.y) else r:SetPoint("CENTER") end
+  r:SetFrameStrata("HIGH")
+  r:SetToplevel(true)
+  r:SetClampedToScreen(true)
+  r:EnableMouse(true)
+  r:SetMovable(true)
+  r:RegisterForDrag("LeftButton")
+  r:SetScript("OnDragStart", function(self) self:StartMoving() end)
+  r:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local punkt, _, _, x, y = self:GetPoint()
+    ns.db.fenster = { punkt = punkt, x = x, y = y }
+  end)
+  if UISpecialFrames then table.insert(UISpecialFrames, "CampfireBuddyFrame") end
+  if self.echt then bauenEcht(r) else bauenFlach(r) end
 
   -- Restzeit im Status jede Sekunde
   local warten = 0
@@ -459,6 +742,7 @@ function W:Bauen()
   end)
 
   bauenStatus()
+  bauenLager()
   bauenBuffs()
   bauenKit()
   bauenEinstellungen()
@@ -471,10 +755,14 @@ function W:Zeigen(schluessel)
   if not self.rahmen then self:Bauen() end
   self.aktiv = schluessel or self.aktiv or "status"
   for k, f in pairs(self.seiten) do f:SetShown(k == self.aktiv) end
-  for _, b in ipairs(self.reiter) do
+  for i, b in ipairs(self.reiter) do
     local an = b.schluessel == self.aktiv
-    b.wahl:SetShown(an)
-    b.text:SetTextColor(rgba(an and F.text or F.leise))
+    if self.echt then
+      if an and PanelTemplates_SetTab then pcall(PanelTemplates_SetTab, self.rahmen, i) end
+    else
+      b.wahl:SetShown(an)
+      b.text:SetTextColor(rgba(an and F.text or F.leise))
+    end
   end
   self.rahmen:Show()
   self:Aktualisieren()

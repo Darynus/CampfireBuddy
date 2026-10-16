@@ -30,7 +30,15 @@ local function kopie(a)
   local id, name, dauer, ende, icon = a.spellId, a.name, a.duration, a.expirationTime, a.icon
   if geheim(id) or geheim(name) or geheim(dauer) or geheim(ende) or geheim(icon) then return nil end
   if type(id) ~= "number" then return nil end
-  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0 }
+  -- Instanz (für den Tooltip von Camp Benefits) und Werte (Punkte, z. B. +12 Stärke), nur wenn lesbar
+  local instanz = a.auraInstanceID
+  if geheim(instanz) or type(instanz) ~= "number" then instanz = nil end
+  local punkte
+  if type(a.points) == "table" and not geheim(a.points) then
+    local p = a.points[1]
+    if type(p) == "number" and not geheim(p) then punkte = p end
+  end
+  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0, instanz = instanz, punkte = punkte }
 end
 
 -- Alle hilfreichen Buffs des Spielers: { {id, name, icon, dauer, ende} }.
@@ -87,6 +95,14 @@ function B:Lesen()
   local neu, feuer, essen = {}, false, nil
   local alle, geht = B.Alle()
   if geht then
+    -- Alle Buffs nach ID und Name, für den Vergleich mit Klassen-Buffs (Objekte.Konflikt) und die
+    -- Lager-Erkennung (ids[Zauber-ID] = Kopie der Aura)
+    local ids, namen = {}, {}
+    for _, a in ipairs(alle) do
+      ids[a.id] = a
+      if type(a.name) == "string" then namen[a.name] = true end
+    end
+    self.ids, self.namen = ids, namen
     for _, a in ipairs(alle) do
       if verfolgt[a.id] then neu[a.id] = a end
       if a.id == ns.CAMPFIRE_NEARBY then feuer = true end
@@ -146,6 +162,12 @@ function B:Lesen()
   self.aktiv, self.amFeuer, self.essen = neu, feuer, essen
   self.gelesen, self.nachKampf = true, false
   if feuer and not warFeuer then ns.Erinnerung:AmFeuer() end
+  -- Lager-Erkennung: ankommen, weggehen, Bonus-Buffs und Camp Benefits auswerten
+  if ns.Lager then
+    if feuer and not warFeuer then ns.Lager:Ankunft() end
+    if warFeuer and not feuer then ns.Lager:Weg() end
+    ns.Lager:Pruefen()
+  end
   ns.Erinnerung:Vollstaendig()
   ns.aktualisieren()
   return true

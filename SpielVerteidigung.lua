@@ -92,7 +92,7 @@ function V:Bauen(r)
   self.lagerSchein:SetPoint("CENTER", r, "TOPLEFT", 16, BAHN_Y[2])
   self.lager = r:CreateTexture(nil, "ARTWORK")
   self.lager:SetSize(34, 34)
-  self.lager:SetTexture(S.FLAMME)
+  S.feuer(self.lager)
   platz(self.lager, 16, BAHN_Y[2])
 
   -- Kopfzeile: Stand links, Totem-Wahl rechts

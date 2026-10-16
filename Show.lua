@@ -131,13 +131,13 @@ function SH:Bauen()
   self.schein = S.glut(f, 120, 76, { 1, 0.5, 0.12, 1 })
   self.schein:SetPoint("CENTER", f, "BOTTOMLEFT", SPUR_RECHTS + 30, BODEN + 10)
   self.feuer = f:CreateTexture(nil, "ARTWORK")
-  self.feuer:SetSize(44, 44)
+  self.feuer:SetSize(52, 52)
   self.feuer:SetPoint("BOTTOM", f, "BOTTOMLEFT", SPUR_RECHTS + 30, BODEN - 12)
-  self.feuer:SetTexture(S.FLAMME)
-  -- zweite, leuchtende Lage darüber: flackert
+  local takt = S.feuer(self.feuer)
+  -- zweite, leuchtende Lage darüber: flackert im selben Takt
   self.flackern = f:CreateTexture(nil, "ARTWORK", nil, 1)
   self.flackern:SetAllPoints(self.feuer)
-  self.flackern:SetTexture(S.FLAMME)
+  S.feuer(self.flackern, takt)
   if self.flackern.SetBlendMode then self.flackern:SetBlendMode("ADD") end
 
   -- Funken und Konfetti
@@ -298,7 +298,8 @@ end
 function SH:Kulisse(dt, jetzt)
   for _, s in ipairs(self.sterne) do s:SetAlpha(0.35 + 0.65 * math.abs(math.sin(jetzt * 0.9 + s.phase))) end
   self.schein:SetAlpha(0.55 + 0.35 * math.sin(jetzt * 7.3) * math.sin(jetzt * 2.1))
-  self.flackern:SetAlpha(0.15 + 0.25 * math.abs(math.sin(jetzt * 9.1) * math.sin(jetzt * 3.3)))
+  -- Das Feuer flackert selbst (Bildblatt), die helle Lage gibt nur noch etwas Glanz dazu
+  self.flackern:SetAlpha(0.05 + 0.12 * math.abs(math.sin(jetzt * 9.1) * math.sin(jetzt * 3.3)))
   local fx = SPUR_RECHTS + 30
   for _, t in ipairs(self.teilchen) do
     if not t.aktiv and not self.feuerwerk and math.random() < dt * 0.6 then
@@ -315,7 +316,8 @@ function SH:Kulisse(dt, jetzt)
       t:SetAlpha(math.max(0, rest))
       t:ClearAllPoints()
       t:SetPoint("CENTER", self.rahmen, "BOTTOMLEFT", t.x, t.y)
-      if rest <= 0 then t.aktiv = false t:Hide() end
+      -- Unter der Titelzeile verlöschen: Ein Funke im Titel sieht aus wie ein Tippfehler
+      if rest <= 0 or t.y > HOEHE - 26 then t.aktiv = false t:Hide() end
     end
   end
   if self.blaseBis and jetzt >= self.blaseBis then self.blaseBis = nil self.blase:Hide() end

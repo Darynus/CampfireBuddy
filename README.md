@@ -26,25 +26,36 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 
 ![Buff bar](images/campfirebuddy-5-leiste.png)
 
+### Know your camp
+- **Camp tab**: which campfire you are at (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, which camp bonuses you get and how strong they are.
+- **What you can add**: every object your professions can bring that this camp is missing, or a better one that replaces a smaller one.
+- **Camp tip**: after a minute at the fire, one chat line tells you what this camp can still use from you.
+- Learned from your Camp Benefits, the bonus buffs, objects placed by you or your group, and the fire you hover over. Nothing is sent to anyone.
+
+![Camp tab](images/campfirebuddy-8-camp.png)
+
 ### Camp Kit
-- At a campfire, a small bar with a **Sit** button and one button for each **camp object** your professions can build.
+- At a campfire, a small bar with a **Sit** button and your best **camp object** for every bonus, all three tiers. What the camp still needs comes first.
 - Carry a finished object? One click places it. Otherwise one click builds one, just like *Create* in your profession window. Cooldowns are shown on the buttons.
 - **Light a campfire**: away from a fire, when your Camp Benefits are missing, the Camp Kit offers your campfire (needs Cooking, Simple Wood and Flint and Tinder).
-- The **Camp kit** tab lists every camp object with its profession, its bonus, your materials and a **Craft** button.
+- **Class buffs**: an object that adds nothing on top of a class buff you already have says so in its tooltip.
+- The **Camp kit** tab lists every camp object with its profession, its bonus, your materials and a **Craft** button, and shows which recipes you have not learned yet.
 
 ![Camp Kit](images/campfirebuddy-4-kit.png)
 ![Camp kit tab](images/campfirebuddy-7-campkit.png)
 
 ### Murloc show and campfire games
+- **A real campfire** with logs, a stone ring and glowing embers, whose flames flicker in a seamless loop.
 - While you sit for a minute, a **baby murloc** walks through a little night scene to the fire and ends with one of ten finales. Stand up too early and he is sad.
 - Click **Play** for eight little games, each with its own best score: Whack-a-Murloc, Marshmallow, Murloc Race, Spark Catcher, Campfire Fishing, Log Stack, Camp Memory and Camp Defense with King Mrgl.
 - **Fun sounds** in the show and the games, can be turned off.
 
 ![Murloc show](images/campfirebuddy-2-show.png)
 ![Campfire games](images/campfirebuddy-3-spiele.png)
+![A real campfire](images/campfirebuddy-9-feuer.png)
 
 ### Settings
-Every reminder, the bar, the Camp Kit, the murloc show and the sounds can be switched on or off, in the Campfire Buddy window and under *Esc > Options > AddOns*.
+The window looks and feels like the game's own windows. Every reminder, the bar, the Camp Kit, the murloc show and the sounds can be switched on or off, in the Campfire Buddy window and under *Esc > Options > AddOns*.
 
 ![Settings](images/campfirebuddy-6-optionen.png)
 
@@ -67,7 +78,7 @@ Every reminder, the bar, the Camp Kit, the murloc show and the sounds can be swi
 
 ## Safety
 
-Campfire Buddy reads your own buffs, bags and professions and shows them. It sends no messages and does nothing on its own. Sitting down, building and placing camp objects only happen when you click a button, one action per click. Everything is recognized by IDs, so it works in every game language. Nothing is read in combat.
+Campfire Buddy reads your own buffs, bags and professions and what you see at the campfire, and shows them. It sends no messages and does nothing on its own. Sitting down, building and placing camp objects only happen when you click a button, one action per click. Everything is recognized by IDs, so it works in every game language. Nothing is read in combat.
 
 ## Support
 

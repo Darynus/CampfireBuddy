@@ -1,5 +1,24 @@
 # Campfire Buddy changelog
 
+## 0.2.0-beta (2026-10-16)
+
+- **A real, flickering campfire**: the fire in the murloc show and in the games is now a rendered campfire (logs, stone ring, glowing embers) whose flames move in an eight frame loop, instead of a flat drawing.
+
+- **The window now looks like a real WoW window**: portrait frame with the murloc, title bar, inset panel, tabs along the bottom, red buttons, the game's checkboxes and radio buttons, a status bar like the game's own, and gold headings. The buff bar and the Camp Kit keep their look.
+
+- **Camp tab: know your camp**: which campfire it is (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, an overview of all ten camp bonuses (active with their values, at the fire, covered by a class buff, or missing), and what you can still add or upgrade. Campfire Buddy learns this from your Camp Benefits, the bonus buffs, objects placed by you or your group, and the fire you hover over. It never sends anything.
+- **Camp tip**: after a minute at the fire, one chat line tells you what this camp can still use from your bags or crafts.
+- **Camp Kit knows the camp**: objects the camp still needs come first and get the ember border. Objects already there, or replaced by a better one, stay plain.
+- **Active camp bonuses** on the Status page. Read by spell ID, so it works in every game language.
+
+- **All camp objects**: every profession now has its tier 2 and tier 3 objects (skill 140 and 300), plus Cookie's Feast and the Iron Oven. The Camp Kit bar shows one button per bonus: your best object in the bags, or the best one you can build right now.
+- **Horde Faction Banner**: Horde characters now get their own banner recipe.
+- **Class buff check**: an object that gives nothing on top of a class buff you already have (Blessing of Might, Arcane Intellect, Mark of the Wild and so on) says so in its tooltip. Works in every game language.
+- **Recipe not learned**: once you open the profession window, objects you have not learned yet stop showing up as buildable.
+- **Countdown at the fire**: the one minute Welcoming Campfire buff is now recognized by its spell ID.
+- **Fix**: placing an object from your bags now uses its bag slot, which Forever accepts.
+- **Fix**: Camp Kit buttons react to one mouse edge only, so one click is always one action.
+
 ## 0.1.0-beta (2026-10-14)
 
 First public beta for WoW Forever.

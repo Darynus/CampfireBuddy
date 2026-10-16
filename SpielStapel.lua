@@ -17,7 +17,7 @@ function ST:Bauen(r)
   self.feuer = r:CreateTexture(nil, "ARTWORK")
   self.feuer:SetSize(36, 36)
   self.feuer:SetPoint("BOTTOMRIGHT", -8, 4)
-  self.feuer:SetTexture(S.FLAMME)
+  S.feuer(self.feuer)
   self.scheite = {}
   for i = 1, SICHTBAR + 1 do
     local t = r:CreateTexture(nil, "ARTWORK")

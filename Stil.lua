@@ -15,6 +15,46 @@ S.NACHT = "Interface\\AddOns\\CampfireBuddy\\Media\\Nacht"
 S.NACHT_HOEHE = 199 / 256       -- genutzter Teil der Nachtszene (Rest ist Boden zum Abschneiden)
 S.FLAMME = "Interface\\AddOns\\CampfireBuddy\\Media\\Lagerfeuer"
 
+-- Flackerndes Lagerfeuer (aus Blender, tools/grafik/feuer.js): 8 Bilder einer Endlosschleife auf
+-- einem Blatt mit 4 x 2 Feldern. S.feuer(textur) macht eine Textur zum Feuer. Ein Taktgeber
+-- schaltet alle sichtbaren Feuer zehnmal pro Sekunde weiter, jedes mit eigenem Versatz.
+S.FEUER_ANIM = "Interface\\AddOns\\CampfireBuddy\\Media\\LagerfeuerAnim"
+local FEUER_BILDER, FEUER_SPALTEN, FEUER_ZEILEN, FEUER_TAKT = 8, 4, 2, 0.1
+local feuerListe = setmetatable({}, { __mode = "k" })
+
+local function feuerBild(t, nr)
+  nr = nr % FEUER_BILDER
+  local spalte, zeile = nr % FEUER_SPALTEN, math.floor(nr / FEUER_SPALTEN)
+  t:SetTexCoord(spalte / FEUER_SPALTEN, (spalte + 1) / FEUER_SPALTEN, zeile / FEUER_ZEILEN, (zeile + 1) / FEUER_ZEILEN)
+end
+
+-- versatz: gleicher Wert für Texturen, die im Gleichtakt flackern sollen. Ohne Angabe bekommt
+-- jedes neue Feuer einen anderen (aus einem Zähler, der Zufall der Spiele bleibt unberührt).
+-- Gibt den Versatz zurück.
+local naechsterVersatz = 0
+function S.feuer(t, versatz)
+  if not versatz then
+    naechsterVersatz = naechsterVersatz + 3
+    versatz = naechsterVersatz
+  end
+  t:SetTexture(S.FEUER_ANIM)
+  feuerListe[t] = versatz
+  feuerBild(t, versatz)
+  return versatz
+end
+
+local feuerZeit, feuerSchritt = 0, 0
+function S.feuerWeiter(dt)
+  feuerZeit = feuerZeit + dt
+  if feuerZeit < FEUER_TAKT then return end
+  feuerZeit = 0
+  feuerSchritt = feuerSchritt + 1
+  for t, versatz in pairs(feuerListe) do
+    if t:IsVisible() then feuerBild(t, feuerSchritt + versatz) end
+  end
+end
+CreateFrame("Frame"):SetScript("OnUpdate", function(_, dt) S.feuerWeiter(dt) end)
+
 -- Markenzeichen: der grüne Murloc aus den Icons des Spiels (liegt im Client, nichts wird
 -- mitgeliefert), dazu unser Lagerfeuer-Abzeichen unten rechts. Fehlt ein Icon im Client,
 -- gilt das nächste der Liste.
@@ -79,6 +119,25 @@ function S.kasten(parent, typ, grund, rand, name)
   return f
 end
 
+-- Baustein des Spiels (Vorlage aus dem Client, z. B. UIPanelButtonTemplate). nil, wenn es die
+-- Vorlage in diesem Client nicht gibt. Das Hauptfenster nimmt so den echten Look von WoW, wo es
+-- geht, und fällt sonst auf die eigenen Bausteine zurück.
+function S.vorlage(typ, parent, vorlage, name)
+  local ok, f = pcall(CreateFrame, typ, name, parent, vorlage)
+  if ok and f then return f end
+end
+
+-- Schrift eines Knopfs aus einer Vorlage (sonst eine eigene in der Mitte)
+local function knopfSchrift(b, vorlage)
+  local s = b.GetFontString and b:GetFontString()
+  if type(s) ~= "table" then s = type(b.Text) == "table" and b.Text or nil end
+  if not s then
+    s = S.schrift(b, vorlage or "GameFontNormal")
+    s:SetPoint("CENTER")
+  end
+  return s
+end
+
 function S.grundFarbe(f, farbe) if f.SetBackdropColor then f:SetBackdropColor(rgba(farbe)) end end
 function S.randFarbe(f, farbe) if f.SetBackdropBorderColor then f:SetBackdropBorderColor(rgba(farbe)) end end
 
@@ -112,8 +171,9 @@ function S.tooltip(rahmen, titel, text)
   rahmen:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+-- Überschrift in Gold, wie die Abschnitte in den Fenstern des Spiels
 function S.ueberschrift(parent, text)
-  local s = S.schrift(parent, "GameFontNormalSmall", F.leise)
+  local s = S.schrift(parent, "GameFontNormal")
   s:SetText(text)
   return s
 end
@@ -166,9 +226,35 @@ function S.stern(parent, groesse)
   return t
 end
 
--- Haken mit Text, rechts optional eine Zahl
+-- Haken mit Text, rechts optional eine Zahl. Mit dem Haken-Kasten des Spiels, wenn es ihn gibt.
+-- Die ganze Zeile ist anklickbar, der Kasten selbst nimmt keine Maus an.
 function S.haken(parent, breite, text, hilfe, beiKlick)
   local b = CreateFrame("Button", nil, parent)
+  local box = S.vorlage("CheckButton", b, "UICheckButtonTemplate")
+  if box then
+    b:SetSize(breite, 22)
+    box:SetSize(22, 22)
+    box:SetPoint("LEFT", -3, 0)
+    box:EnableMouse(false)
+    b.box = box
+    b.name = S.schrift(b, "GameFontHighlight")
+    b.name:SetPoint("LEFT", box, "RIGHT", 2, 1)
+    b.name:SetText(text)
+    b.menge = S.schrift(b, "GameFontHighlightSmall", F.leise)
+    b.menge:SetPoint("RIGHT", -4, 0)
+    function b:Setzen(an)
+      self.an = an and true or false
+      self.box:SetChecked(self.an)
+    end
+    b:SetScript("OnClick", function(self)
+      S.klick()
+      beiKlick(self, not self.an)
+    end)
+    b:HookScript("OnEnter", function(self) if self.box.LockHighlight then self.box:LockHighlight() end end)
+    b:HookScript("OnLeave", function(self) if self.box.UnlockHighlight then self.box:UnlockHighlight() end end)
+    S.tooltip(b, text, hilfe)
+    return b
+  end
   b:SetSize(breite, 20)
   b.kasten = S.kasten(b, "Frame", F.flaeche, F.rand)
   b.kasten:SetSize(14, 14)
@@ -197,8 +283,40 @@ function S.haken(parent, breite, text, hilfe, beiKlick)
   return b
 end
 
--- Umschalter mit mehreren Feldern, eines davon aktiv
+-- Auswahl aus mehreren Werten, einer davon aktiv. Mit den runden Auswahlknöpfen des Spiels, wenn
+-- es sie gibt, sonst als Leiste mit Feldern.
 function S.segmente(parent, breite, optionen, beiWahl)
+  local probe = S.vorlage("CheckButton", parent, "UIRadioButtonTemplate")
+  if probe then
+    probe:Hide()
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(breite, 22)
+    local teil = breite / #optionen
+    f.knoepfe = {}
+    for i, o in ipairs(optionen) do
+      local b = CreateFrame("Button", nil, f)
+      b:SetSize(teil, 22)
+      b:SetPoint("LEFT", f, "LEFT", (i - 1) * teil, 0)
+      b.radio = S.vorlage("CheckButton", b, "UIRadioButtonTemplate")
+      b.radio:SetSize(16, 16)
+      b.radio:SetPoint("LEFT", 0, 0)
+      b.radio:EnableMouse(false)
+      b.text = S.schrift(b, "GameFontHighlightSmall")
+      b.text:SetPoint("LEFT", b.radio, "RIGHT", 3, 0)
+      b.text:SetText(o.text)
+      b.wert = o.wert
+      b:SetScript("OnClick", function() S.klick() beiWahl(o.wert) end)
+      b:HookScript("OnEnter", function(self) if self.radio.LockHighlight then self.radio:LockHighlight() end end)
+      b:HookScript("OnLeave", function(self) if self.radio.UnlockHighlight then self.radio:UnlockHighlight() end end)
+      S.tooltip(b, o.text, o.hilfe)
+      f.knoepfe[i] = b
+    end
+    function f:Setzen(wert)
+      self.wert = wert
+      for _, b in ipairs(self.knoepfe) do b.radio:SetChecked(b.wert == wert) end
+    end
+    return f
+  end
   local f = S.kasten(parent, "Frame", F.flaeche, F.rand)
   f:SetSize(breite, 22)
   local teil = (breite - 2) / #optionen
@@ -230,8 +348,21 @@ function S.segmente(parent, breite, optionen, beiWahl)
   return f
 end
 
--- Großer, gefüllter Knopf. Aussehen(text, farbe, an) setzt Text, Farbe und ob er klickbar ist.
+-- Großer Knopf. Aussehen(text, farbe, an) setzt Text, Farbe und ob er klickbar ist.
+-- Gibt es den roten Knopf des Spiels, sieht er so aus (die Farbe gilt dann nicht).
 function S.knopf(parent, breite, hoehe)
+  local echt = S.vorlage("Button", parent, "UIPanelButtonTemplate")
+  if echt then
+    echt:SetSize(breite, hoehe or 30)
+    echt.text = knopfSchrift(echt)
+    function echt:Aussehen(text, farbe, an)
+      self.text:SetText(text)
+      self.farbe = farbe
+      if an then self:Enable() else self:Disable() end
+    end
+    echt:Aussehen("", F.akzent, true)
+    return echt
+  end
   local b = S.kasten(parent, "Button", F.akzent, F.akzent)
   b:SetSize(breite, hoehe or 30)
   b.text = S.schrift(b, "GameFontHighlight", F.text)
@@ -257,8 +388,17 @@ function S.knopf(parent, breite, hoehe)
   return b
 end
 
--- Schlichter Knopf mit Rahmen, für Nebenaktionen
+-- Knopf für Nebenaktionen: der rote Knopf des Spiels, sonst schlicht mit Rahmen
 function S.textKnopf(parent, text, breite, beiKlick)
+  local echt = S.vorlage("Button", parent, "UIPanelButtonTemplate")
+  if echt then
+    echt:SetSize(breite, 22)
+    echt.text = knopfSchrift(echt, "GameFontNormalSmall")
+    echt.text:SetText(text)
+    echt:SetScript("OnClick", function(self) S.klick() beiKlick(self) end)
+    function echt:Aktiv(an) if an then self:Enable() else self:Disable() end end
+    return echt
+  end
   local b = S.kasten(parent, "Button", F.flaeche, F.rand)
   b:SetSize(breite, 22)
   b.text = S.schrift(b, "GameFontHighlightSmall", F.text)
@@ -317,17 +457,27 @@ end
 
 -- Fortschrittsbalken mit zweiter, heller Füllung dahinter (Erfahrung und Erholungsbonus).
 -- Setzen(anteil, zweiter) mit Werten zwischen 0 und 1.
-function S.balken(parent, breite, hoehe)
-  local b = S.kasten(parent, "Frame", F.flaeche, F.rand)
+-- echt: mit der Füllung der Statusleisten des Spiels (wie Zauber- und Erfahrungsleiste), für das
+-- Hauptfenster. Die Buff-Leiste bleibt flach.
+S.STATUSLEISTE = "Interface\\TargetingFrame\\UI-StatusBar"
+function S.balken(parent, breite, hoehe, echt)
+  local b = S.kasten(parent, "Frame", echt and { 0, 0, 0, 0.55 } or F.flaeche, echt and { 0.35, 0.35, 0.35, 1 } or F.rand)
   b:SetSize(breite, hoehe)
   b.zweit = b:CreateTexture(nil, "ARTWORK", nil, 1)
   b.zweit:SetPoint("TOPLEFT", 1, -1)
   b.zweit:SetPoint("BOTTOMLEFT", 1, 1)
-  b.zweit:SetColorTexture(rgba(F.erholt))
   b.voll = b:CreateTexture(nil, "ARTWORK", nil, 2)
   b.voll:SetPoint("TOPLEFT", 1, -1)
   b.voll:SetPoint("BOTTOMLEFT", 1, 1)
-  b.voll:SetColorTexture(rgba(F.akzent))
+  if echt then
+    b.zweit:SetTexture(S.STATUSLEISTE)
+    b.zweit:SetVertexColor(rgba(F.erholt))
+    b.voll:SetTexture(S.STATUSLEISTE)
+    b.voll:SetVertexColor(rgba(F.akzent))
+  else
+    b.zweit:SetColorTexture(rgba(F.erholt))
+    b.voll:SetColorTexture(rgba(F.akzent))
+  end
   local innen = breite - 2
   local function breiteVon(anteil)
     return math.max(0.001, math.min(1, anteil or 0)) * innen
@@ -398,11 +548,15 @@ function S.liste(parent, breite, hoehe, zeilenHoehe, bauen)
 end
 
 -- Zeile für Listen: Hintergrund beim Überfahren, zwei Textzeilen
+-- Beim Überfahren leuchtet die Zeile wie ein Eintrag im Questlog des Spiels
+S.ZEILE_LICHT = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
 function S.zeile(parent)
   local z = CreateFrame("Button", nil, parent)
   z.hell = z:CreateTexture(nil, "BACKGROUND")
   z.hell:SetAllPoints()
-  z.hell:SetColorTexture(F.akzent[1], F.akzent[2], F.akzent[3], 0.12)
+  z.hell:SetTexture(S.ZEILE_LICHT)
+  if z.hell.SetBlendMode then z.hell:SetBlendMode("ADD") end
+  z.hell:SetAlpha(0.5)
   z.hell:Hide()
   z.wahl = z:CreateTexture(nil, "BACKGROUND", nil, 1)
   z.wahl:SetPoint("TOPLEFT")

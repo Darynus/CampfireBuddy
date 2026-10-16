@@ -31,6 +31,16 @@ local function tooltip(b)
     local name = O.Anzeige(o)
     GameTooltip:SetText(name, 1, 1, 1)
     GameTooltip:AddLine(o.info, F.leise[1], F.leise[2], F.leise[3], true)
+    local basis = O.BASIS[o.familie]
+    if basis and basis ~= o and o.art ~= "feuer" then
+      GameTooltip:AddLine(string.format(L.KIT_REPLACES, (O.Anzeige(basis))), F.leise[1], F.leise[2], F.leise[3], true)
+    end
+    local konflikt = O.Konflikt(o)
+    if konflikt then
+      GameTooltip:AddLine(string.format(L.KIT_CONFLICT, konflikt), F.hinweis[1], F.hinweis[2], F.hinweis[3], true)
+    elseif O.BonusAktiv(o) then
+      GameTooltip:AddLine(L.KIT_BONUS_ACTIVE, F.erfolg[1], F.erfolg[2], F.erfolg[3], true)
+    end
     local vorrat = O.Vorrat(o)
     if vorrat > 0 then
       GameTooltip:AddLine(string.format(L.KIT_IN_BAGS, vorrat), 0.4, 0.84, 0.56, true)
@@ -48,7 +58,10 @@ end
 local function knopf(parent, objekt)
   local b = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate,BackdropTemplate")
   b:SetSize(GROESSE, GROESSE)
-  b:RegisterForClicks("AnyUp", "AnyDown")
+  -- Nur eine Tastenkante: Mit beiden führt Forever die Aktion pro Klick zweimal aus (Befund aus
+  -- Fireside). Welche, sagt die Einstellung "Aktion beim Drücken" der Aktionsleisten.
+  b.runter = (GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")) and true or false
+  b:RegisterForClicks(b.runter and "AnyDown" or "AnyUp")
   if objekt then
     b:SetAttribute("type", "spell")
     b:SetAttribute("spell", objekt.spell)
@@ -79,10 +92,15 @@ local function knopf(parent, objekt)
   b.abklingen:SetPoint("CENTER", 0, 0)
   -- Bauen läuft über das Berufsfenster, nicht über den sicheren Teil des Knopfs
   b:HookScript("OnClick", function(self, taste, runter) K:BauKlick(self, runter) end)
-  b:HookScript("OnEnter", function(self) S.randFarbe(self, F.akzent) tooltip(self) end)
-  b:HookScript("OnLeave", function(self) S.randFarbe(self, F.rand) GameTooltip:Hide() end)
+  b:HookScript("OnEnter", function(self) S.randFarbe(self, S.heller(F.akzent)) tooltip(self) end)
+  b:HookScript("OnLeave", function(self) K.Rand(self) GameTooltip:Hide() end)
   b:Hide()
   return b
+end
+
+-- Rand eines Knopfs: glutrot, wenn das Objekt hier vorgeschlagen wird, sonst schlicht
+function K.Rand(b)
+  S.randFarbe(b, b.vorschlag and F.akzent or F.rand)
 end
 
 function K:Bauen()
@@ -133,11 +151,20 @@ function K:Auswahl()
   local liste = {}
   if am then
     table.insert(liste, { knopf = self.sitzen, zustand = "bereit" })
-    for i, o in ipairs(O.LISTE) do
-      local z = O.Zustand(o, berufe)
-      if o.art ~= "feuer" and (z == "vorrat" or z == "bereit" or z == "material") then
-        table.insert(liste, { knopf = self.knoepfe[i], zustand = z })
-      end
+    -- Je Bonus nur ein Knopf: die beste Stufe, die der Char hat oder bauen kann. Was dieses Lager
+    -- noch brauchen kann (Lager.lua), steht vorne und bekommt den glutroten Rand.
+    local objekte = {}
+    for _, e in ipairs(O.FuersKit(berufe)) do
+      local bereit = e.zustand == "vorrat" or e.zustand == "bereit"
+      e.vorschlag = bereit and ns.Lager:Vorschlag(e.o)
+      table.insert(objekte, e)
+    end
+    table.sort(objekte, function(a, b)
+      if (a.vorschlag and true or false) ~= (b.vorschlag and true or false) then return a.vorschlag and true or false end
+      return a.nr < b.nr
+    end)
+    for _, e in ipairs(objekte) do
+      table.insert(liste, { knopf = self.knoepfe[e.nr], zustand = e.zustand, vorschlag = e.vorschlag })
     end
   elseif ns.Buffs:BrauchtLager() then
     local _, z, nr = O.BestesFeuer(berufe)
@@ -154,7 +181,9 @@ function K:Modus(b)
   if vorrat > 0 then
     b.modus, b.itemID = "aufstellen", id
     b:SetAttribute("type", "item")
-    b:SetAttribute("item", "item:" .. id)
+    -- Platz in den Taschen, sonst der Name: "item:<ID>" ignoriert Forever beim Benutzen
+    local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+    b:SetAttribute("item", O.Platz(id) or name or ("item:" .. id))
     local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)
     if icon then b.icon:SetTexture(icon) end
     b.anzahl:SetText(vorrat > 1 and tostring(vorrat) or "1")
@@ -203,10 +232,10 @@ function K:Craften(o)
   ns.melde(string.format(L.KIT_OPEN_FIRST, beruf))
 end
 
--- Klick im Modus "bauen" auf der Leiste. Nur beim Loslassen der Taste, damit ein Klick nicht
--- doppelt zählt.
+-- Klick im Modus "bauen" auf der Leiste. Nur auf der angemeldeten Tastenkante, damit ein Klick
+-- nicht doppelt zählt.
 function K:BauKlick(b, runter)
-  if runter or not b.objekt or b.modus ~= "bauen" then return end
+  if (runter and true or false) ~= b.runter or not b.objekt or b.modus ~= "bauen" then return end
   self:Craften(b.objekt)
 end
 
@@ -254,6 +283,9 @@ function K:Aktualisieren()
     if b.objekt then self:Modus(b) end
     b.zustand = e.zustand
     b.icon:SetDesaturated(e.zustand == "material")
+    -- Glutroter Rand: Objekt ist bereit und das Lager kann es brauchen
+    b.vorschlag = e.vorschlag and true or false
+    K.Rand(b)
     b:Show()
   end
   if #liste == 0 then

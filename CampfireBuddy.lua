@@ -16,8 +16,10 @@ ns.VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetada
 ns.CAMP_BENEFITS = 1229741   -- "Camp Benefits", nach einer Minute Sitzen am Feuer, 1 Stunde
 ns.CAMPFIRE_NEARBY = 1283391 -- "Campfire Nearby", solange man am Feuer steht, ohne Dauer
 ns.STANDARD_BUFFS = { [ns.CAMP_BENEFITS] = true }
--- Countdown-Buff beim Sitzen am Feuer: ID noch unbekannt (Beta-Test), bis dahin über die Dauer
-ns.COUNTDOWN_IDS = {}
+-- Countdown-Buff beim Sitzen am Feuer ("Welcoming Campfire", eine Minute): 1229739 an Feuern von
+-- Spielern, 1289723 an Feuern in der Welt (IDs aus den Add-ons Fireside und Campfire Tales, im
+-- Spiel noch zu bestätigen). Unbekannte IDs erkennt Buffs.lua weiter über die Dauer.
+ns.COUNTDOWN_IDS = { [1229739] = true, [1289723] = true }
 
 local STANDARD = {
   warnenMinuten = 5,     -- 0 = aus
@@ -41,6 +43,7 @@ local STANDARD = {
   murlocTon = true,      -- Murloc-Schrei in Show und Spielen
   rekorde = {},          -- Rekord je Spiel
   fangbuch = {},         -- Fänge beim Lagerfeuer-Angeln
+  rezepte = {},          -- ["Name-Realm"] = { [Zauber-ID] = gelernt }, aus dem offenen Berufsfenster
   -- show, spiel: Positionen von Show und Spiel
   gewarnt = {},          -- [Zauber-ID] = Ablaufzeit, zu der schon gewarnt wurde
   abgelaufen = {},       -- [Zauber-ID] = Ablaufzeit, deren Ende schon gemeldet wurde
