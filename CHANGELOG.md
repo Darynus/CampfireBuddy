@@ -2,6 +2,8 @@
 
 ## 0.2.0-beta (2026-10-16)
 
+- **New minimap icon**: a small rendered campfire. Prefer the murloc or the game's Camp symbol? Pick it in Settings next to the minimap button.
+
 - **A real, flickering campfire**: the fire in the murloc show and in the games is now a rendered campfire (logs, stone ring, glowing embers) whose flames move in an eight frame loop, instead of a flat drawing.
 
 - **The window now looks like a real WoW window**: portrait frame with the murloc, title bar, inset panel, tabs along the bottom, red buttons, the game's checkboxes and radio buttons, a status bar like the game's own, and gold headings. The buff bar and the Camp Kit keep their look.

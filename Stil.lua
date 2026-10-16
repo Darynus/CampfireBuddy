@@ -14,6 +14,8 @@ S.LAGER = "Interface\\Icons\\INV_Camelot_Camping_CampBenefits"
 S.NACHT = "Interface\\AddOns\\CampfireBuddy\\Media\\Nacht"
 S.NACHT_HOEHE = 199 / 256       -- genutzter Teil der Nachtszene (Rest ist Boden zum Abschneiden)
 S.FLAMME = "Interface\\AddOns\\CampfireBuddy\\Media\\Lagerfeuer"
+-- Lagerfeuer eng beschnitten für den Minikarten-Knopf (Blender, tools/grafik/feuer.js)
+S.SYMBOL = "Interface\\AddOns\\CampfireBuddy\\Media\\Symbol"
 
 -- Flackerndes Lagerfeuer (aus Blender, tools/grafik/feuer.js): 8 Bilder einer Endlosschleife auf
 -- einem Blatt mit 4 x 2 Feldern. S.feuer(textur) macht eine Textur zum Feuer. Ein Taktgeber

@@ -35,6 +35,7 @@ local STANDARD = {
   leiste = {},           -- Position der Leiste
   minimapZeigen = true,
   minimapWinkel = 150,
+  minimapSymbol = "feuer", -- Bild im Minikarten-Knopf: "feuer", "murloc" oder "lager"
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
   essenIds = {},         -- [Zauber-ID] = { name, icon }, vom Spieler als Essens-Buff markiert
   essenIcons = {},       -- [Datei-ID des Symbols] = Name, ebenso

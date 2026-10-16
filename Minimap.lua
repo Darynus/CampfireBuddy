@@ -32,9 +32,10 @@ function M:Bauen()
   local icon = b:CreateTexture(nil, "ARTWORK")
   icon:SetSize(20, 20)
   icon:SetPoint("CENTER")
-  S.markeSetzen(icon)
   if icon.SetMask then pcall(icon.SetMask, icon, "Interface\\CharacterFrame\\TempPortraitAlphaMask") end
-  S.abzeichen(b, icon, 13)
+  self.icon = icon
+  self.abzeichen = S.abzeichen(b, icon, 13)
+  self:Symbol()
   local ring = b:CreateTexture(nil, "OVERLAY")
   ring:SetSize(53, 53)
   ring:SetPoint("TOPLEFT")
@@ -64,6 +65,23 @@ function M:Bauen()
   S.tooltip(b, L.ADDON_NAME, L.MINIMAP_TOOLTIP)
   position(b)
   self:Sichtbarkeit()
+end
+
+-- Bild im Knopf nach der Einstellung: Lagerfeuer (Standard), Murloc mit Abzeichen oder das
+-- Symbol von Camp Benefits aus dem Spiel
+function M:Symbol()
+  if not self.icon then return end
+  local wahl = e().minimapSymbol or "feuer"
+  if wahl == "murloc" then
+    S.markeSetzen(self.icon)
+  elseif wahl == "lager" then
+    self.icon:SetTexture(S.LAGER)
+    self.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  else
+    self.icon:SetTexture(S.SYMBOL)
+    self.icon:SetTexCoord(0, 1, 0, 1)
+  end
+  self.abzeichen:SetShown(wahl == "murloc")
 end
 
 function M:Sichtbarkeit()

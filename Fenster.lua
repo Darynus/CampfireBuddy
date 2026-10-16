@@ -595,11 +595,28 @@ local function bauenEinstellungen()
     end)
     h.feld = s.feld
     h:SetPoint("TOPLEFT", 0, s.y)
+    -- Neben dem Minikarten-Knopf die Wahl seines Bildes, deshalb ist diese Zeile schmaler
+    if s.feld == "minimapZeigen" then h:SetWidth(230) end
     f.schalter[i] = h
+  end
+
+  -- Bild im Minikarten-Knopf
+  f.symbol = S.segmente(f, 210, {
+    { wert = "feuer", text = L.ICON_FIRE, hilfe = L.ICON_FIRE_HELP },
+    { wert = "murloc", text = L.ICON_MURLOC, hilfe = L.ICON_MURLOC_HELP },
+    { wert = "lager", text = L.ICON_CAMP, hilfe = L.ICON_CAMP_HELP },
+  }, function(wert)
+    ns.db.minimapSymbol = wert
+    ns.Minimap:Symbol()
+    W:Aktualisieren()
+  end)
+  for _, h in ipairs(f.schalter) do
+    if h.feld == "minimapZeigen" then f.symbol:SetPoint("LEFT", h, "RIGHT", 10, 0) end
   end
 
   function f:Aktualisieren()
     self.warnen:Setzen(ns.db.warnenMinuten)
+    self.symbol:Setzen(ns.db.minimapSymbol or "feuer")
     for _, h in ipairs(self.schalter) do h:Setzen(ns.db[h.feld]) end
   end
 end
