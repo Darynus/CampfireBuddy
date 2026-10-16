@@ -147,6 +147,13 @@ function B:Bauen()
   essen.text:SetJustifyH("LEFT")
   essen.text:SetWordWrap(false)
   essen.text:SetText(L.FOOD_HINT)
+  -- Fehlt das Essen: Schimmer in der Warnfarbe, der an- und abschwillt (Patricks Wunsch: soll
+  -- mehr auffallen)
+  essen.glanz = essen:CreateTexture(nil, "BACKGROUND")
+  essen.glanz:SetAllPoints()
+  essen.glanz:SetColorTexture(WARNFARBE[1], WARNFARBE[2], WARNFARBE[3], 0.24)
+  essen.glanz:SetAlpha(0)
+  essen.puls = S.pulsieren(essen.glanz, 0.1, 1, 1.1)
 
   -- Restzeit zweimal pro Sekunde, nur solange die Leiste sichtbar ist
   local warten = 0
@@ -231,6 +238,7 @@ function B:Aktualisieren()
 
   local essenZeigen = ns.db.essenErinnern and ns.Buffs.gelesen and not ns.Buffs:Essen()
   self.essen:SetShown(essenZeigen and true or false)
+  S.puls(self.essen.puls, essenZeigen and true or false)
   local zeilen = n + (leerZeigen and 1 or 0)
   if essenZeigen then
     self.essen:ClearAllPoints()

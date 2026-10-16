@@ -27,6 +27,9 @@ local function tooltip(b)
   if not o then
     GameTooltip:SetText(L.BTN_SIT, 1, 1, 1)
     GameTooltip:AddLine(L.SIT_HELP, F.leise[1], F.leise[2], F.leise[3], true)
+    -- Lohnt sich das Hinsetzen für diesen Char? (Empfehlung.lua)
+    local urteil = ns.Empfehlung and ns.Empfehlung:Urteil()
+    if urteil then GameTooltip:AddLine(urteil, F.akzent[1], F.akzent[2], F.akzent[3], true) end
   else
     local name = O.Anzeige(o)
     GameTooltip:SetText(name, 1, 1, 1)

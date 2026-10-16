@@ -23,6 +23,7 @@ local REITER = {
   { schluessel = "lager", text = L.TAB_CAMP },
   { schluessel = "buffs", text = L.TAB_BUFFS },
   { schluessel = "kit", text = L.TAB_KIT },
+  { schluessel = "spiele", text = L.TAB_GAMES },
   { schluessel = "einstellungen", text = L.TAB_SETTINGS },
   { schluessel = "hilfe", text = L.TAB_HELP },
 }
@@ -342,7 +343,10 @@ local function bauenKit()
       z.zustand:SetTextColor(rgba(FARBE[e.zustand]))
       local konflikt = O.Konflikt(e.o)
       local aktiv = not konflikt and O.BonusAktiv(e.o)
-      z.info:SetText(konflikt and string.format(L.KIT_CONFLICT_SHORT, konflikt) or (aktiv and L.KIT_BONUS_ACTIVE_SHORT) or e.o.info)
+      -- Gelernter Wert vor der Wirkung ("+12 Attack power."), sobald er einmal in Camp Benefits stand
+      local wert = ns.Lager.WertText(e.o)
+      z.info:SetText(konflikt and string.format(L.KIT_CONFLICT_SHORT, konflikt) or (aktiv and L.KIT_BONUS_ACTIVE_SHORT)
+        or (wert and (wert .. " " .. e.o.info)) or e.o.info)
       z.info:SetTextColor(rgba(konflikt and F.hinweis or (aktiv and F.erfolg) or F.leise))
       z.mats:SetText(string.format(L.KIT_PROF, beruf, e.o.stufe) .. "   " .. O.MaterialText(e.o))
       local kann = e.zustand == "bereit" or (e.zustand == "vorrat" and O.MaterialDa(e.o))
@@ -354,11 +358,68 @@ local function bauenKit()
   end
 end
 
+-- Seite: Games (alle Lagerfeuer-Spiele direkt aus dem Fenster, Patricks Wunsch 16. Okt) ------
+
+local function bauenSpiele()
+  local f = seite("spiele")
+  local SP = ns.Spiel
+  S.ueberschrift(f, L.GAMES_PAGE_TITLE):SetPoint("TOPLEFT", 0, 0)
+  local text = S.absatz(f, B - 180, F.leise)
+  text:SetPoint("TOPLEFT", 0, -16)
+  text:SetText(L.GAMES_PAGE_TEXT)
+  local oeffnen = S.textKnopf(f, L.GAMES_PAGE_OPEN, 160, function() SP:Menue() end)
+  oeffnen:SetHeight(26)
+  oeffnen:SetPoint("TOPRIGHT", -4, -14)
+  -- Kacheln: drei Spalten, Symbol links, Name und Rekord rechts daneben, Klick startet das Spiel
+  f.kacheln = {}
+  local SPALTEN, kh = 3, 54
+  local kb = math.floor((B - (SPALTEN - 1) * 8) / SPALTEN)
+  for i, spiel in ipairs(SP.liste) do
+    local b = S.kasten(f, "Button", F.flaeche, F.rand)
+    b:SetSize(kb, kh)
+    local spalte, reihe = (i - 1) % SPALTEN, math.floor((i - 1) / SPALTEN)
+    b:SetPoint("TOPLEFT", spalte * (kb + 8), -64 - reihe * (kh + 8))
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(36, 36)
+    b.icon:SetPoint("LEFT", 9, 0)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.name = S.schrift(b, "GameFontHighlight", F.text)
+    b.name:SetPoint("TOPLEFT", 54, -11)
+    b.name:SetWidth(kb - 60)
+    b.name:SetJustifyH("LEFT")
+    b.name:SetWordWrap(false)
+    b.best = S.schrift(b, "GameFontHighlightSmall", F.leise)
+    b.best:SetPoint("TOPLEFT", 54, -29)
+    b:HookScript("OnEnter", function(self) S.randFarbe(self, F.akzent) end)
+    b:HookScript("OnLeave", function(self) S.randFarbe(self, F.rand) end)
+    b:SetScript("OnClick", function() S.klick() SP:Spielen(spiel.key) end)
+    S.tooltip(b, function() return spiel.name end, function() return spiel.info end)
+    b.spiel = spiel
+    f.kacheln[i] = b
+  end
+  function f:Aktualisieren()
+    local rekorde = ns.db.rekorde or {}
+    for _, b in ipairs(self.kacheln) do
+      local s = b.spiel
+      b.icon:SetTexture(s.icon)
+      b.name:SetText(s.name)
+      -- Spiele mit Stufen haben je Stufe einen Rekord, hier der beste
+      local best = rekorde[s.key] or 0
+      for _, st in ipairs(s.stufen or {}) do best = math.max(best, rekorde[st.rekord or ""] or 0) end
+      b.best:SetText(best > 0 and string.format(L.GAMES_PAGE_BEST, best) or L.GAMES_PAGE_NEW)
+    end
+  end
+end
+
 -- Seite: Camp (dieses Lager: Feuer, Plätze, was steht, was der Char beisteuern kann) --------
 
 local MAX_PLAETZE = 10
 local RAND_GRAU = { 0.62, 0.64, 0.70, 1 }   -- Rand der Kästen im Look des Spiels
-local QUELLE = { cast = L.CAMP_SRC_CAST, lager = L.CAMP_SRC_LIST, maus = L.CAMP_SRC_SEEN, bonus = L.CAMP_SRC_BONUS }
+-- Farbe als Farbcode für Text mit mehreren Farben ("|cffrrggbb")
+local function farbcode(c)
+  return string.format("|cff%02x%02x%02x", math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5))
+end
+local QUELLE = { cast = L.CAMP_SRC_CAST, log = L.CAMP_SRC_CAST, lager = L.CAMP_SRC_LIST, maus = L.CAMP_SRC_SEEN, bonus = L.CAMP_SRC_BONUS }
 
 local function bauenLager()
   local f = seite("lager")
@@ -388,7 +449,7 @@ local function bauenLager()
       local e = self.eintrag
       if not e then return nil end
       local quelle = QUELLE[e.quelle] or ""
-      if e.quelle == "cast" and e.wer then quelle = string.format(L.CAMP_SRC_CAST_BY, e.wer) end
+      if (e.quelle == "cast" or e.quelle == "log") and e.wer then quelle = string.format(L.CAMP_SRC_CAST_BY, e.wer) end
       return quelle
     end)
     f.plaetze[i] = p
@@ -396,14 +457,31 @@ local function bauenLager()
   f.mehr = S.schrift(f, "GameFontHighlightLarge", F.leise)
   f.mehr:SetPoint("LEFT", f.plaetze[1], "RIGHT", 4, 0)
 
+  -- Vorschau: was Camp Benefits nach einer Minute hier bringt, groß und farbig (Patricks Wunsch,
+  -- 16. Okt). Je Objekt Symbol, gelernter Wert und Bonus; grün nützt dem Char, grau hat er schon.
+  f.vorschau = CreateFrame("Frame", nil, f)
+  f.vorschau:SetPoint("TOPLEFT", 0, -82)
+  f.vorschau:SetSize(B, 36)
+  f.vorschau:EnableMouse(true)
+  f.vorschau.text = S.absatz(f.vorschau, B, F.text, "GameFontNormal")
+  f.vorschau.text:SetPoint("TOPLEFT", 0, 0)
+  S.tooltip(f.vorschau, L.CAMP_PREVIEW, L.CAMP_PREVIEW_HELP)
+
   -- Alle Lager-Boni in zwei Spalten: Name links, Zustand rechts, Einzelheiten im Tooltip
-  S.ueberschrift(f, L.CAMP_BONUSES):SetPoint("TOPLEFT", 0, -88)
+  -- Ohne Feuer fehlen Plätze und Vorschau: dann rückt alles darunter um VERSATZ nach oben
+  -- (sonst klafft eine Lücke, Patricks Screenshot 16. Okt). Basiswerte am Feuer, f:Schieben setzt sie.
+  f.kopfBoni = S.ueberschrift(f, L.CAMP_BONUSES)
+  f.kopfBoni:SetPoint("TOPLEFT", 0, -126)
+  -- Für welche Rolle bewertet wird (Empfehlung.lua), rechts neben der Überschrift
+  f.rolle = S.schrift(f, "GameFontHighlightSmall", F.leise)
+  f.rolle:SetPoint("TOPRIGHT", -4, -129)
   f.boni = {}
   local spalte = math.floor((B - 16) / 2)
   for i = 1, #O.BONUS_REIHE do
     local b = CreateFrame("Frame", nil, f)
     b:SetSize(spalte, 19)
-    b:SetPoint("TOPLEFT", ((i - 1) % 2) * (spalte + 16), -106 - math.floor((i - 1) / 2) * 19)
+    b.x, b.y = ((i - 1) % 2) * (spalte + 16), -144 - math.floor((i - 1) / 2) * 19
+    b:SetPoint("TOPLEFT", b.x, b.y)
     b:EnableMouse(true)
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetSize(16, 16)
@@ -421,6 +499,7 @@ local function bauenLager()
         if o.familie == e.fam and O.Passt(o) then table.insert(namen, (O.Anzeige(o))) end
       end
       local zeilen = { string.format(L.BONUS_FROM, table.concat(namen, ", ")) }
+      if e.nutzen then table.insert(zeilen, ({ [0] = L.FIT_LOW, L.FIT_SOME, L.FIT_GOOD })[e.nutzen]) end
       if e.zustand == "aktiv" then table.insert(zeilen, L.BONUS_TIP_ACTIVE) end
       if e.zustand == "da" then table.insert(zeilen, L.BONUS_TIP_AT_FIRE) end
       if e.konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, e.konflikt)) end
@@ -435,8 +514,9 @@ local function bauenLager()
     f.boni[i] = b
   end
 
-  S.ueberschrift(f, L.CAMP_YOU_CAN_ADD):SetPoint("TOPLEFT", 0, -212)
-  f.liste = S.liste(f, B, 38 * 4, 38, function(l)
+  f.kopfAdd = S.ueberschrift(f, L.CAMP_YOU_CAN_ADD)
+  f.kopfAdd:SetPoint("TOPLEFT", 0, -250)
+  f.liste = S.liste(f, B, 38 * 3, 38, function(l)
     local z = S.zeile(l)
     z.icon = z:CreateTexture(nil, "ARTWORK")
     z.icon:SetSize(28, 28)
@@ -466,7 +546,25 @@ local function bauenLager()
     end)
     return z
   end)
-  f.liste:SetPoint("TOPLEFT", 0, -230)
+  f.liste:SetPoint("TOPLEFT", 0, -268)
+  local VERSATZ = 82
+  function f:Schieben(amFeuer)
+    local dy = amFeuer and 0 or VERSATZ
+    if self.verschoben == dy then return end
+    self.verschoben = dy
+    self.kopfBoni:ClearAllPoints()
+    self.kopfBoni:SetPoint("TOPLEFT", 0, -126 + dy)
+    self.rolle:ClearAllPoints()
+    self.rolle:SetPoint("TOPRIGHT", -4, -129 + dy)
+    for _, b in ipairs(self.boni) do
+      b:ClearAllPoints()
+      b:SetPoint("TOPLEFT", b.x, b.y + dy)
+    end
+    self.kopfAdd:ClearAllPoints()
+    self.kopfAdd:SetPoint("TOPLEFT", 0, -250 + dy)
+    self.liste:ClearAllPoints()
+    self.liste:SetPoint("TOPLEFT", 0, -268 + dy)
+  end
 
   local ZUSTAND = { vorrat = L.CAMP_STATE_BAGS, bereit = L.CAMP_STATE_CRAFT, material = L.KIT_NEED_MATS }
   local FARBE = { vorrat = F.erfolg, bereit = F.erfolg, material = F.hinweis }
@@ -474,12 +572,48 @@ local function bauenLager()
     local gesamt, belegt = LG:Plaetze()
     local feuerName = LG.feuer and (O.Anzeige(LG.feuer.o))
     local anzahl = belegt == 1 and L.CAMP_OBJECTS_ONE or string.format(L.CAMP_OBJECTS_MANY, belegt)
+    local EM = ns.Empfehlung
+    local urteil = EM:Urteil()
     if not LG.aktiv then
       self.feuer:SetText(L.CAMP_NONE)
     elseif feuerName then
-      self.feuer:SetText(string.format(L.CAMP_FIRE_KNOWN, feuerName, gesamt, anzahl))
+      self.feuer:SetText(string.format(L.CAMP_FIRE_KNOWN, feuerName, gesamt, anzahl) .. (urteil and ("  " .. urteil) or ""))
     else
-      self.feuer:SetText(string.format(L.CAMP_FIRE_UNKNOWN, anzahl))
+      self.feuer:SetText(string.format(L.CAMP_FIRE_UNKNOWN, anzahl) .. (urteil and ("  " .. urteil) or ""))
+    end
+    self:Schieben(LG.aktiv)
+    local typ, rolle, klasse = EM:Rolle()
+    self.rolle:SetText(rolle and string.format(L.FIT_FOR, rolle) or "")
+
+    -- Vorschau: was die Objekte an diesem Feuer nach einer Minute bringen
+    if LG.aktiv then
+      local benefits = LG:Benefits()
+      local liste, teile = {}, {}
+      for _, e in pairs(LG.objekte) do table.insert(liste, e) end
+      table.sort(liste, function(a, b) return tostring(a.o.spell) < tostring(b.o.spell) end)
+      for _, e in ipairs(liste) do
+        local fam = O.FAMILIE[e.o.familie]
+        if fam and fam.bonus then
+          local _, icon = O.Anzeige(e.o)
+          local da = benefits[e.o.familie]
+          local haben = da and LG.Rang(da.o) >= LG.Rang(e.o)
+          local konflikt = O.Konflikt(e.o)
+          local grau = haben or konflikt or EM:Nutzen(e.o.familie, typ, klasse) == 0
+          local text = fam.bonus
+          if e.o.familie ~= "zelt" then
+            text = ((e.genau and LG.WertText(e.o)) or L.CAMP_PREVIEW_UNKNOWN) .. " " .. text
+          end
+          if haben then text = text .. " (" .. L.CAMP_PREVIEW_HAVE .. ")"
+          elseif konflikt then text = text .. " (" .. L.CAMP_PREVIEW_CLASS .. ")" end
+          table.insert(teile, string.format("|T%s:16:16|t %s%s|r", tostring(icon or "Interface\\Icons\\INV_Misc_QuestionMark"),
+            farbcode(grau and F.leise or F.erfolg), text))
+        end
+      end
+      self.vorschau.text:SetText(#teile == 0 and L.CAMP_PREVIEW_NONE
+        or (L.CAMP_PREVIEW .. "  " .. table.concat(teile, "    ")))
+      self.vorschau:Show()
+    else
+      self.vorschau:Hide()
     end
     -- Plätze: bei unbekannter Größe so viele wie bekannt, mindestens 3, dahinter ein Fragezeichen
     local objekte = {}
@@ -512,11 +646,14 @@ local function bauenLager()
     for i, e in ipairs(LG:BoniUebersicht()) do
       local b = self.boni[i]
       b.eintrag = e
+      e.nutzen = EM:Nutzen(e.fam, typ, klasse)
       local _, icon = O.Anzeige(e.basis)
       b.icon:SetTexture(icon)
-      b.icon:SetDesaturated(e.zustand == "fehlt" or e.zustand == "material")
+      b.icon:SetDesaturated(e.zustand == "fehlt" or e.zustand == "material" or e.nutzen == 0)
       b.name:SetText(e.bonus)
       b.name:SetTextColor(rgba(e.zustand == "aktiv" and F.text or F.leise))
+      -- Boni, die diesem Char kaum etwas bringen, treten zurück
+      b:SetAlpha(e.nutzen == 0 and 0.5 or 1)
       local text = BONUS_TEXT[e.zustand]
       if e.zustand == "aktiv" then
         if e.fam == "zelt" then text = L.BONUS_USED
@@ -576,22 +713,23 @@ local function bauenEinstellungen()
 
   local schalter = {
     { feld = "ton", text = L.OPT_SOUND, hilfe = L.OPT_SOUND_HELP, y = -66 },
-    { feld = "erinnernLogin", text = L.OPT_LOGIN, hilfe = L.OPT_LOGIN_HELP, y = -88 },
-    { feld = "erinnernGruppe", text = L.OPT_GROUP, hilfe = L.OPT_GROUP_HELP, y = -110 },
-    { feld = "feuerHinweis", text = L.OPT_CAMPFIRE, hilfe = L.OPT_CAMPFIRE_HELP, y = -132 },
-    { feld = "essenErinnern", text = L.OPT_FOOD, hilfe = L.OPT_FOOD_HELP, y = -154 },
-    { feld = "allesDaMelden", text = L.OPT_ALL_SET, hilfe = L.OPT_ALL_SET_HELP, y = -176 },
-    { feld = "leisteZeigen", text = L.OPT_BAR, hilfe = L.OPT_BAR_HELP, y = -226 },
-    { feld = "nurMitBuff", text = L.OPT_BAR_ONLY, hilfe = L.OPT_BAR_ONLY_HELP, y = -248 },
-    { feld = "gesperrt", text = L.OPT_LOCK, hilfe = L.OPT_LOCK_HELP, y = -270 },
-    { feld = "minimapZeigen", text = L.OPT_MINIMAP, hilfe = L.OPT_MINIMAP_HELP, y = -292,
+    { feld = "erinnernLogin", text = L.OPT_LOGIN, hilfe = L.OPT_LOGIN_HELP, y = -87 },
+    { feld = "erinnernGruppe", text = L.OPT_GROUP, hilfe = L.OPT_GROUP_HELP, y = -108 },
+    { feld = "feuerHinweis", text = L.OPT_CAMPFIRE, hilfe = L.OPT_CAMPFIRE_HELP, y = -129 },
+    { feld = "essenErinnern", text = L.OPT_FOOD, hilfe = L.OPT_FOOD_HELP, y = -150 },
+    { feld = "allesDaMelden", text = L.OPT_ALL_SET, hilfe = L.OPT_ALL_SET_HELP, y = -171 },
+    { feld = "leisteZeigen", text = L.OPT_BAR, hilfe = L.OPT_BAR_HELP, y = -215 },
+    { feld = "nurMitBuff", text = L.OPT_BAR_ONLY, hilfe = L.OPT_BAR_ONLY_HELP, y = -236 },
+    { feld = "gesperrt", text = L.OPT_LOCK, hilfe = L.OPT_LOCK_HELP, y = -257 },
+    { feld = "minimapZeigen", text = L.OPT_MINIMAP, hilfe = L.OPT_MINIMAP_HELP, y = -278,
       danach = function() ns.Minimap:Sichtbarkeit() end },
-    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -314 },
-    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -336 },
-    { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -358 },
+    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -299 },
+    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -320 },
+    { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -341 },
+    { feld = "karteZeigen", text = L.OPT_MAP, hilfe = L.OPT_MAP_HELP, y = -362 },
   }
   S.ueberschrift(f, L.REMINDERS):SetPoint("TOPLEFT", 0, -50)
-  S.ueberschrift(f, L.DISPLAY):SetPoint("TOPLEFT", 0, -210)
+  S.ueberschrift(f, L.DISPLAY):SetPoint("TOPLEFT", 0, -199)
   f.schalter = {}
   for i, s in ipairs(schalter) do
     local h = S.haken(f, B, s.text, s.hilfe, function(_, an)
@@ -769,6 +907,7 @@ function W:Bauen()
   bauenLager()
   bauenBuffs()
   bauenKit()
+  bauenSpiele()
   bauenEinstellungen()
   bauenHilfe()
   r:Hide()

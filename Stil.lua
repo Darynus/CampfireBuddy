@@ -12,7 +12,9 @@ S.ICON = "Interface\\AddOns\\CampfireBuddy\\Media\\Icon"
 -- Lagerfeuer für Show und Spiele (eigene Grafiken aus grafik/)
 S.LAGER = "Interface\\Icons\\INV_Camelot_Camping_CampBenefits"
 S.NACHT = "Interface\\AddOns\\CampfireBuddy\\Media\\Nacht"
-S.NACHT_HOEHE = 199 / 256       -- genutzter Teil der Nachtszene (Rest ist Boden zum Abschneiden)
+-- Nachtszene aus Blender (tools/grafik/spiele.js), Atlas.lua setzt die genauen Werte
+S.NACHT_HOEHE = 338 / 512        -- genutzter Teil der Nachtszene (1024 x 338 in 1024 x 512)
+S.NACHT_SEITE = 512 / 1024       -- Höhe zu Breite der Textur
 S.FLAMME = "Interface\\AddOns\\CampfireBuddy\\Media\\Lagerfeuer"
 -- Lagerfeuer eng beschnitten für den Minikarten-Knopf (Blender, tools/grafik/feuer.js)
 S.SYMBOL = "Interface\\AddOns\\CampfireBuddy\\Media\\Symbol"
@@ -66,6 +68,15 @@ S.MARKE = {
   "Interface\\Icons\\INV_Misc_Head_Murloc_01",
 }
 S.ABZEICHEN = "Interface\\AddOns\\CampfireBuddy\\Media\\Abzeichen"
+
+-- Motiv aus dem Atlas der Spiele (Atlas.lua, Media/Spiele.tga). false, wenn es das Motiv nicht gibt.
+function S.atlas(t, name)
+  local k = S.ATLAS and S.ATLAS[name]
+  if not k then return false end
+  t:SetTexture(S.SPIELE)
+  t:SetTexCoord(k[1], k[2], k[3], k[4])
+  return true
+end
 
 function S.markeSetzen(t)
   for _, datei in ipairs(S.MARKE) do
@@ -631,10 +642,24 @@ function S.kreis(parent, breite, hoehe, farbe, ebene, leuchten)
   return t
 end
 
--- Weicher Schein: drei Kreise übereinander, außen groß und schwach, innen klein und kräftiger.
--- Gibt eine Gruppe zurück, die sich wie eine Textur bewegen und einfärben lässt.
+-- Weicher Schein: ein Verlauf aus dem Atlas der Spiele (Atlas.lua), ohne Ringe. Fehlt der Atlas,
+-- vier Kreise übereinander. Gibt eine Gruppe zurück, die sich wie eine Textur bewegen lässt.
 function S.glut(parent, breite, hoehe, farbe, ebene)
   local g = { teile = {} }
+  if S.ATLAS and S.ATLAS.schein then
+    local t = parent:CreateTexture(nil, ebene or "BORDER")
+    t:SetSize(breite, hoehe)
+    S.atlas(t, "schein")
+    t:SetVertexColor(rgba(farbe or F.akzent))
+    if t.SetBlendMode then t:SetBlendMode("ADD") end
+    t.basis = 0.55
+    t:SetAlpha(t.basis)
+    g.teile[1] = t
+    function g:SetPoint(...) t:ClearAllPoints() t:SetPoint(...) end
+    function g:SetAlpha(a) t:SetAlpha(math.min(1, a * t.basis * 1.6)) end
+    function g:SetShown(an) t:SetShown(an) end
+    return g
+  end
   -- vier Kreise: außen groß und schwach, innen klein und kräftiger, ergibt einen weichen Rand
   local stufen = { { 1, 0.16 }, { 0.75, 0.22 }, { 0.5, 0.3 }, { 0.28, 0.4 } }
   for i, s in ipairs(stufen) do

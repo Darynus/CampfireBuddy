@@ -36,12 +36,16 @@ local STANDARD = {
   minimapZeigen = true,
   minimapWinkel = 150,
   minimapSymbol = "feuer", -- Bild im Minikarten-Knopf: "feuer", "murloc" oder "lager"
+  karteZeigen = true,    -- Lagerfeuer auf der Weltkarte (Karte.lua)
+  karte = {},            -- [Nummer] = Lager mit Ort, siehe Lager.lua
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
   essenIds = {},         -- [Zauber-ID] = { name, icon }, vom Spieler als Essens-Buff markiert
   essenIcons = {},       -- [Datei-ID des Symbols] = Name, ebenso
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
   showAn = true,         -- Murloc-Show während der Sitz-Minute
   murlocTon = true,      -- Murloc-Schrei in Show und Spielen
+  spielMusik = true,     -- eigene Arcade-Musik in den Spielen (Musik.lua)
+  showGroesse = "gross", -- Größe von Show und Spielen: "normal", "gross", "riesig"
   rekorde = {},          -- Rekord je Spiel
   fangbuch = {},         -- Fänge beim Lagerfeuer-Angeln
   rezepte = {},          -- ["Name-Realm"] = { [Zauber-ID] = gelernt }, aus dem offenen Berufsfenster

@@ -10,7 +10,8 @@
 --      die genauso heißen wie normale Dinge im Dorf (Amboss, Webstuhl, Spinnrad, Gerbgestell,
 --      Objekte.lua "mehrdeutig"): Das Spiel nennt bei Objekten weder Position noch Kennung
 --      (Patricks Fund in Goldshire, 16. Okt).
---   4. Aufstellen durch Fremde in der Nähe (Namensplaketten, Ziel, Maus), solange man am Feuer ist.
+--   4. Aufstellen durch Fremde in der Nähe (Namensplaketten, Ziel, Maus), solange man am Feuer ist,
+--      und ohne Namensplaketten über das Kampflog (LG:Kampflog).
 -- Die Boni selbst stehen in Forever alle im einen Buff Camp Benefits (Zeilen "Objekt: Wirkung"),
 -- eigene Buffs je Objekt gibt es nicht (Patricks Screenshot, 16. Okt). LG:Benefits liest sie.
 -- Namen werden nur mit den Namen verglichen, die das Spiel selbst zu den IDs nennt. So passt es in
@@ -104,6 +105,106 @@ function LG:Neu()
   self.objekte = {}
   self.tipp = nil
   self.gelesen = nil
+  self.kartenNr, self.feuerZeit, self.weltfeuer = nil, nil, nil
+end
+
+-- Karte ---------------------------------------------------------------------------------------
+-- Jedes Lager bekommt einen Eintrag mit Ort, damit Karte.lua es auf der Weltkarte zeigt, auch
+-- nach dem Weggehen. ns.db.karte[nr] = { karte, x, y (0 bis 1), genau, feuer (Zauber-ID),
+-- objekte = { Zauber-IDs }, seit, ende (Serverzeit, nil bei Feuern der Welt), quelle, wer }.
+-- Es wird nichts gesendet: nur, was dieser Char selbst gesehen hat oder seine Gruppe anzündet.
+local FEUER_BRENNT = 15 * 60
+local NAH = 0.006     -- Abstand auf der Zonenkarte, ab dem es dasselbe Lager ist (etwa 20 Meter)
+
+local function kartenPos(einheit)
+  if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition) then return nil end
+  local ok, karte = pcall(C_Map.GetBestMapForUnit, einheit)
+  if not ok or type(karte) ~= "number" or geheim(karte) then return nil end
+  local ok2, pos = pcall(C_Map.GetPlayerMapPosition, karte, einheit)
+  if not ok2 or type(pos) ~= "table" or not pos.GetXY then return nil end
+  local x, y = pos:GetXY()
+  if type(x) ~= "number" or type(y) ~= "number" or geheim(x) or geheim(y) or (x == 0 and y == 0) then return nil end
+  return karte, x, y
+end
+LG.KartenPos = kartenPos
+
+local function kartenListe()
+  if not ns.db then return {} end
+  ns.db.karte = ns.db.karte or {}
+  return ns.db.karte
+end
+
+-- Eintrag in der Nähe (gleiche Karte, noch nicht abgelaufen)
+local function kartenSuchen(karte, x, y)
+  local jetzt = serverZeit()
+  for nr, e in pairs(kartenListe()) do
+    if e.karte == karte and (not e.ende or e.ende > jetzt) and (e.x - x) ^ 2 + (e.y - y) ^ 2 < (NAH * 3) ^ 2 then return nr end
+  end
+end
+
+local function neuerEintrag(e)
+  local liste = kartenListe()
+  local nr = (ns.db.karteNr or 0) + 1
+  ns.db.karteNr = nr
+  liste[nr] = e
+  return nr
+end
+
+-- Ort des aktuellen Lagers merken: genau (sitzt am Feuer, hat es angezündet) oder grob (Ankunft)
+function LG:OrtMerken(genau)
+  if not ns.db then return end
+  local karte, x, y = kartenPos("player")
+  if not karte then return end
+  local liste = kartenListe()
+  local e = self.kartenNr and liste[self.kartenNr]
+  if not e then
+    local nr = kartenSuchen(karte, x, y)
+    if nr then
+      self.kartenNr, e = nr, liste[nr]
+    else
+      self.kartenNr = neuerEintrag({ seit = serverZeit(), quelle = "ich" })
+      e = liste[self.kartenNr]
+    end
+  end
+  if e.genau and not genau and e.karte == karte then return end
+  e.karte, e.x, e.y, e.genau = karte, x, y, genau and true or false
+end
+
+-- Inhalt des Eintrags vom aktuellen Lager: Feuer, Objekte, wie lange es noch brennt
+local function karteFuellen(self)
+  local e = self.kartenNr and kartenListe()[self.kartenNr]
+  if not e then return end
+  e.feuer = self.feuer and self.feuer.o.spell or e.feuer
+  e.wer = self.feuer and self.feuer.wer or e.wer
+  e.objekte = {}
+  for _, o in pairs(self.objekte) do table.insert(e.objekte, o.o.spell) end
+  if self.weltfeuer then
+    e.welt, e.ende = true, nil
+  else
+    local start = self.feuerZeit or e.seit
+    e.ende = math.max(start + FEUER_BRENNT, self.aktiv and serverZeit() + 60 or 0, e.ende or 0)
+  end
+end
+
+-- Alle Einträge (oder die einer Karte), die noch brennen. Abgelaufene werden dabei gelöscht.
+function LG:KartenEintraege(karte)
+  local t, jetzt = {}, serverZeit()
+  local liste = kartenListe()
+  for nr, e in pairs(liste) do
+    if e.ende and e.ende <= jetzt then
+      liste[nr] = nil
+    elseif (not karte or e.karte == karte) and type(e.x) == "number" then
+      e.nr = nr
+      table.insert(t, e)
+    end
+  end
+  return t
+end
+
+function LG:KartenEintragWeg(nr)
+  kartenListe()[nr] = nil
+  if self.kartenNr == nr then self.kartenNr = nil end
+  self:Geaendert()
 end
 
 -- Position des Chars in Metern der Welt (nil in Instanzen oder wenn das Spiel sie nicht nennt)
@@ -133,7 +234,9 @@ local function wiederholen(self, ersteAnkunft)
   for _, e in ipairs(m.objekte or {}) do
     local o = type(e) == "table" and nachZauber[e.spell]
     -- Maus-Funde bei mehrdeutigen Objekten zählen nicht (siehe oben), auch nicht aus älteren Ständen
-    if o and not (e.quelle == "maus" and o.mehrdeutig) then self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true } end
+    if o and not (e.quelle == "maus" and o.mehrdeutig) then
+      self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true, zeit = e.zeit }
+    end
   end
 end
 
@@ -141,11 +244,12 @@ local function speichern(self)
   if not ns.db then return end
   local liste = {}
   for _, e in pairs(self.objekte) do
-    if e.genau then table.insert(liste, { spell = e.o.spell, quelle = e.quelle, wer = e.wer }) end
+    if e.genau then table.insert(liste, { spell = e.o.spell, quelle = e.quelle, wer = e.wer, zeit = e.zeit }) end
   end
   local hier = position() or {}
   ns.db.lager = { zeit = serverZeit(), feuer = self.feuer and self.feuer.o.spell,
     feuerQuelle = self.feuer and self.feuer.quelle, objekte = liste, x = hier.x, y = hier.y, karte = hier.karte }
+  karteFuellen(self)
 end
 
 -- "Campfire Nearby" kam (Buffs.lua)
@@ -154,20 +258,30 @@ function LG:Ankunft()
   if not self.aktiv and not (self.weg and t - self.weg < WEG_FRIST) then
     self:Neu()
     wiederholen(self, not self.schonDa)
+    self.aktiv = true
+    self:OrtMerken(false)
     -- Ab jetzt gehört der gemerkte Stand zu diesem Lager (auch wenn es leer ist)
     speichern(self)
   end
   self.schonDa = true
   self.aktiv, self.weg = true, nil
+  self:Zuhoeren(true)
   local f = self.letztesFeuer
   if f and t - f.zeit < FEUER_VORLAUF then self:FeuerSetzen(f.o, "cast", f.wer) end
   self:Geaendert()
 end
 
--- "Campfire Nearby" ist weg
+-- "Campfire Nearby" ist weg. Steht der Char dabei noch genau am Feuer, ist es ausgegangen: dann
+-- verschwindet es von der Karte. Sonst ist er nur weggegangen, das Feuer bleibt eingezeichnet.
 function LG:Weg()
   if not self.aktiv then return end
   self.aktiv, self.weg = false, ns.jetzt()
+  self:Zuhoeren(false)
+  local e = self.kartenNr and kartenListe()[self.kartenNr]
+  if e and e.genau and not e.welt then
+    local karte, x, y = kartenPos("player")
+    if karte == e.karte and (x - e.x) ^ 2 + (y - e.y) ^ 2 < NAH ^ 2 then e.ende = serverZeit() end
+  end
   self:Geaendert()
 end
 
@@ -181,6 +295,21 @@ function LG:FeuerSetzen(o, quelle, wer)
   self:Geaendert()
 end
 
+-- Volles Feuer: Wer ein weiteres Objekt aufstellt, verdrängt das älteste (Patricks Beobachtung,
+-- 16. Okt: Zelt dazu, ein anderes Objekt war weg). Älteste heißt hier: zuerst bemerkt.
+local function platzMachen(self, neu)
+  local gesamt, belegt = self:Plaetze()
+  while gesamt and belegt > gesamt do
+    local weg
+    for fam, e in pairs(self.objekte) do
+      if fam ~= neu and (not weg or (e.zeit or 0) < (self.objekte[weg].zeit or 0)) then weg = fam end
+    end
+    if not weg then return end
+    self.objekte[weg] = nil
+    belegt = belegt - 1
+  end
+end
+
 -- Objekt am Feuer merken. Höhere Stufe gewinnt (sie ersetzt die kleinere am Feuer).
 function LG:Merken(o, quelle, wer)
   if o.art == "feuer" then return self:FeuerSetzen(o, quelle, wer) end
@@ -192,9 +321,24 @@ function LG:Merken(o, quelle, wer)
       return
     end
   end
-  self.objekte[o.familie] = { o = o, quelle = quelle, wer = wer, genau = true }
+  self.objekte[o.familie] = { o = o, quelle = quelle, wer = wer, genau = true, zeit = serverZeit() }
+  if not alt then platzMachen(self, o.familie) end
   speichern(self)
   self:Geaendert()
+end
+
+-- Frisch vergebene Camp Benefits nennen jedes Objekt mit Wertebonus. Fehlt eins, das schon vor
+-- der Sitz-Minute bekannt war, steht es nicht mehr (ersetzt oder abgebaut). Ausnahmen: Der Char
+-- hat den Klassen-Buff, der den Bonus verdrängt (dann fehlt die Zeile, das Objekt steht aber),
+-- und Zelt, Ingenieurs- und Kochobjekte (ob sie in der Liste stehen, ist nicht sicher).
+local SITZ_MINUTE = 65
+local function nichtMehrDa(self, boni, vergeben)
+  for fam, e in pairs(self.objekte) do
+    if O.FAMILIE[fam] and O.FAMILIE[fam].konflikt and not boni[fam] and not O.Konflikt(e.o)
+      and (e.zeit or 0) < vergeben - SITZ_MINUTE then
+      self.objekte[fam] = nil
+    end
+  end
 end
 
 -- Wurde diese Aura während dieses Lagers vergeben? Bonus-Buffs halten eine Stunde und stammen
@@ -273,14 +417,27 @@ function LG:Benefits()
   for _, z in ipairs(zeilen) do
     local o = LG.Erkennen(z)
     if o and o.art ~= "feuer" then
-      local wert = tonumber(string.match(z, ":%D*(%d+)"))
+      local zahl, prozent = string.match(z, ":%D*(%d+)(%%?)")
+      local wert = tonumber(zahl)
       local alt = boni[o.familie]
       if not alt or LG.Rang(o) > LG.Rang(alt.o) then boni[o.familie] = { o = o, wert = wert } end
+      -- Wert dieses Objekts merken (accountweit), für die Vorschau "nach einer Minute"
+      if wert and ns.db then
+        ns.db.lagerWerte = ns.db.lagerWerte or {}
+        ns.db.lagerWerte[o.spell] = { wert = wert, prozent = prozent == "%" or nil }
+      end
     end
   end
   -- Nur merken, wenn der Tooltip schon Zeilen hatte (gleich nach der Vergabe kann er leer sein)
   if #zeilen > 0 then self.benefits, self.benefitsEnde, self.benefitsZeilen = boni, cb.ende, zeilen end
   return boni, zeilen
+end
+
+-- Gelernter Wert eines Objekts als Text ("+12", "+1%"), nil, wenn es noch nie in Camp Benefits stand
+function LG.WertText(o)
+  local w = o and ns.db and ns.db.lagerWerte and ns.db.lagerWerte[o.spell]
+  if not w then return nil end
+  return string.format(w.prozent and L.CAMP_VALUE_PCT or L.CAMP_VALUE, w.wert)
 end
 
 -- Camp Benefits gerade an diesem Feuer bekommen? Seit dem Ankommen, oder in den letzten zwei
@@ -304,7 +461,9 @@ function LG:Pruefen()
   if type(cb) == "table" and hierBekommen(self, cb) and self.gelesen ~= cb.ende then
     if #zeilen > 0 then
       self.gelesen = cb.ende
+      if (cb.dauer or 0) > 0 then nichtMehrDa(self, boni, serverZeit() - (ns.jetzt() - (cb.ende - cb.dauer))) end
       for _, b in pairs(boni) do self:Merken(b.o, "lager") end
+      speichern(self)
       neu = true
     elseif nochmal < 5 and C_Timer and C_Timer.After then
       -- Tooltip noch leer: gleich noch einmal versuchen
@@ -313,6 +472,16 @@ function LG:Pruefen()
     end
   end
   if type(cb) == "table" and self.gelesen == cb.ende then nochmal = 0 end
+  -- Sitzt am Feuer (Countdown) oder hat gerade Camp Benefits bekommen: Ort ist genau. Der
+  -- Countdown der Feuer in der Welt (1289723) heißt: dieses Feuer brennt immer.
+  local countdown = ns.Buffs.countdown
+  if countdown or (type(cb) == "table" and hierBekommen(self, cb)) then
+    if countdown and countdown.id == 1289723 and not self.weltfeuer then
+      self.weltfeuer = true
+      karteFuellen(self)
+    end
+    self:OrtMerken(true)
+  end
   -- Bonus-Buffs: Familie da, Stufe unbekannt (nur, wenn nichts Genaueres bekannt ist)
   for fam, f in pairs(O.FAMILIE) do
     local a = f.aura and ids[f.aura]
@@ -365,7 +534,18 @@ function LG:Gezaubert(einheit, spellID)
     if einheit == "player" then
       self:Neu()
       self.aktiv = true
+      self:Zuhoeren(true)
+      self.feuerZeit = serverZeit()
+      self:OrtMerken(true)
       self:FeuerSetzen(o, "cast", wer)
+    elseif gruppe then
+      -- Feuer der Gruppe: eigener Eintrag an der Stelle des Mitspielers
+      local karte, x, y = kartenPos(einheit)
+      if karte and ns.db and not kartenSuchen(karte, x, y) then
+        neuerEintrag({ karte = karte, x = x, y = y, genau = true, feuer = o.spell, objekte = {},
+          seit = serverZeit(), ende = serverZeit() + FEUER_BRENNT, quelle = "gruppe", wer = wer })
+        self:Geaendert()
+      end
     end
   elseif self.aktiv and (not gruppe or naheBei(einheit)) then
     self:Merken(o, "cast", wer)
@@ -373,6 +553,46 @@ function LG:Gezaubert(einheit, spellID)
 end
 
 ns.ereignis("UNIT_SPELLCAST_SUCCEEDED", function(einheit, _, spellID) LG:Gezaubert(einheit, spellID) end)
+
+-- Kampflog: Fremde ohne Namensplakette stellen ein Objekt auf. Das Aufstellen steht im Kampflog
+-- (SPELL_CAST_SUCCESS, beim Objekt SPELL_CREATE oder SPELL_SUMMON) mit dem Aufstell-Zauber. Das
+-- Kampflog reicht nur etwa so weit wie die Sichtweite, Lagerfeuer stehen mindestens 100 Meter
+-- auseinander: Was dort auftaucht, steht an diesem Feuer. Eigene und Gruppen-Zauber kommen schon
+-- über UNIT_SPELLCAST_SUCCEEDED, fremde Feuer zählen nicht (das wäre ein anderes Lager). Zugehört
+-- wird nur am Feuer und außerhalb des Kampfes. Gibt das Spiel das Kampflog nicht an Add-ons weiter
+-- (Einschränkungen wie in Midnight), passiert einfach nichts.
+local LOG_ARTEN = { SPELL_CAST_SUCCESS = true, SPELL_CREATE = true, SPELL_SUMMON = true }
+local TYP_SPIELER = 0x400   -- COMBATLOG_OBJECT_TYPE_PLAYER
+local FREMD = 0x8           -- COMBATLOG_OBJECT_AFFILIATION_OUTSIDER
+local logFrame
+
+function LG:Kampflog()
+  if not self.aktiv or imKampf() or not CombatLogGetCurrentEventInfo then return end
+  local ok, _, art, _, _, wer, flags, _, _, _, _, _, spellID = pcall(CombatLogGetCurrentEventInfo)
+  if not ok or geheim(art) or not LOG_ARTEN[art] then return end
+  if type(spellID) ~= "number" or geheim(spellID) or type(flags) ~= "number" or geheim(flags) then return end
+  local band = bit and bit.band
+  if not band or band(flags, TYP_SPIELER) == 0 or band(flags, FREMD) == 0 then return end
+  local o = platzKarte()[spellID]
+  if not o or o.art == "feuer" then return end
+  if type(wer) ~= "string" or geheim(wer) then wer = nil end
+  self:Merken(o, "log", wer and (string.match(wer, "^[^-]+") or wer))
+end
+
+-- Nur am Feuer zuhören, das Kampflog ist sonst sehr gesprächig
+function LG:Zuhoeren(an)
+  if an and not logFrame and CreateFrame and CombatLogGetCurrentEventInfo then
+    logFrame = CreateFrame("Frame")
+    logFrame:SetScript("OnEvent", function() LG:Kampflog() end)
+  end
+  if not logFrame then return end
+  if an and not logFrame.an then
+    logFrame.an = pcall(logFrame.RegisterEvent, logFrame, "COMBAT_LOG_EVENT_UNFILTERED")
+  elseif not an and logFrame.an then
+    pcall(logFrame.UnregisterEvent, logFrame, "COMBAT_LOG_EVENT_UNFILTERED")
+    logFrame.an = false
+  end
+end
 
 -- Maus über einem Spielobjekt am Feuer: Feuer und Objekte mit eindeutigem Namen
 function LG:Objekt(text)

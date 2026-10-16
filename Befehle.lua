@@ -17,6 +17,13 @@ ns.befehl("lock", L.CMD_LOCK, function()
   ns.aktualisieren()
 end)
 
+ns.befehl("minimap", L.CMD_MINIMAP, function()
+  ns.db.minimapZeigen = true
+  ns.Minimap:Zurueck()
+  ns.melde(L.MSG_MINIMAP)
+  ns.aktualisieren()
+end)
+
 ns.befehl("test", L.CMD_TEST, function() ns.Erinnerung:Vorschau() end)
 
 ns.befehl("show", L.CMD_SHOW, function() ns.Show:Vorschau() end)

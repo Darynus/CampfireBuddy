@@ -21,7 +21,7 @@ function M:Bauen()
   self.knopf = b
   b:SetSize(31, 31)
   b:SetFrameStrata("MEDIUM")
-  b:SetFrameLevel(8)
+  b:SetFrameLevel(math.max(8, (Minimap:GetFrameLevel() or 1) + 8))
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:RegisterForDrag("LeftButton")
 
@@ -43,7 +43,9 @@ function M:Bauen()
   b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
   b:SetScript("OnClick", function(_, taste)
-    if taste == "RightButton" then
+    if taste == "LeftButton" and IsShiftKeyDown and IsShiftKeyDown() then
+      ns.Spiel:Menue()
+    elseif taste == "RightButton" then
       ns.db.leisteZeigen = not ns.db.leisteZeigen
       ns.Leiste:Sichtbarkeit()
       ns.aktualisieren()
@@ -65,6 +67,27 @@ function M:Bauen()
   S.tooltip(b, L.ADDON_NAME, L.MINIMAP_TOOLTIP)
   position(b)
   self:Sichtbarkeit()
+  -- Ändert sich die Größe der Minikarte (Bearbeitungsmodus, Skalierung), mitwandern
+  if Minimap.HookScript then pcall(Minimap.HookScript, Minimap, "OnSizeChanged", function() position(b) end) end
+end
+
+-- Nach dem Einloggen (andere Add-ons haben ihre Knöpfe dann gesetzt): neu ausrichten, ganz nach
+-- vorn holen und ausweichen, falls ein anderer Knopf auf demselben Platz sitzt. Der Knopf war
+-- bei Patrick zweimal verschwunden (16. Okt), vermutlich verdeckt.
+function M:Pruefen()
+  local b = self.knopf
+  if not (b and Minimap and e().minimapZeigen) then return end
+  position(b)
+  b:SetFrameStrata("MEDIUM")
+  b:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
+  local x, y = b:GetCenter()
+  if not x then return end
+  for _, k in ipairs({ Minimap:GetChildren() }) do
+    if k ~= b and k.IsShown and k:IsShown() and k.GetCenter and k.GetWidth and (k:GetWidth() or 0) < 60 then
+      local kx, ky = k:GetCenter()
+      if kx and (kx - x) ^ 2 + (ky - y) ^ 2 < 18 ^ 2 then return self:Zurueck() end
+    end
+  end
 end
 
 -- Bild im Knopf nach der Einstellung: Lagerfeuer (Standard), Murloc mit Abzeichen oder das
@@ -82,6 +105,32 @@ function M:Symbol()
     self.icon:SetTexCoord(0, 1, 0, 1)
   end
   self.abzeichen:SetShown(wahl == "murloc")
+end
+
+-- Zurück an einen freien Platz: Winkel, an dem kein anderer Knopf der Minikarte sitzt
+function M:Zurueck()
+  if not self.knopf then return self:Bauen() end
+  local belegt = {}
+  for _, k in ipairs({ Minimap:GetChildren() }) do
+    if k ~= self.knopf and k.IsShown and k:IsShown() and k.GetCenter then
+      local x, y = k:GetCenter()
+      local mx, my = Minimap:GetCenter()
+      if x and mx then table.insert(belegt, math.deg((math.atan2 or math.atan)(y - my, x - mx))) end
+    end
+  end
+  local bester, abstand = 150, -1
+  for w = 0, 345, 15 do
+    local naechster = 360
+    for _, b in ipairs(belegt) do
+      local d = math.abs((w - b + 540) % 360 - 180)
+      if d < naechster then naechster = d end
+    end
+    if naechster > abstand then bester, abstand = w, naechster end
+  end
+  e().minimapWinkel = bester
+  position(self.knopf)
+  self.knopf:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
+  self:Sichtbarkeit()
 end
 
 function M:Sichtbarkeit()
@@ -118,4 +167,8 @@ end
 ns.beimStart(function()
   M:Bauen()
   M:OptionenEintragen()
+end)
+
+ns.ereignis("PLAYER_ENTERING_WORLD", function()
+  if C_Timer and C_Timer.After then C_Timer.After(3, function() M:Pruefen() end) else M:Pruefen() end
 end)

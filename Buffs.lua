@@ -38,7 +38,10 @@ local function kopie(a)
     local p = a.points[1]
     if type(p) == "number" and not geheim(p) then punkte = p end
   end
-  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0, instanz = instanz, punkte = punkte }
+  -- Wer den Buff gegeben hat ("player" beim Essen), nur wenn lesbar
+  local quelle = a.sourceUnit
+  if geheim(quelle) or type(quelle) ~= "string" then quelle = nil end
+  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0, instanz = instanz, punkte = punkte, quelle = quelle }
 end
 
 -- Alle hilfreichen Buffs des Spielers: { {id, name, icon, dauer, ende} }.
@@ -232,6 +235,13 @@ function B:EssenKandidat()
   local a = self.neuester.aura
   -- Essen läuft lange (meist 15 Minuten). Der Countdown beim Sitzen (1 Minute) ist nie Essen.
   if not laeuft(a) or ns.STANDARD_BUFFS[a.id] or (a.dauer or 0) <= 120 then return nil end
+  -- Kein Essen: Buffs von anderen (Essen gibt man sich selbst) und eigene Zauber des Chars, zum
+  -- Beispiel Demon Skin (Patricks Screenshot, 16. Okt). Erkannt an der Zauber-ID, nicht am Namen.
+  if a.quelle and a.quelle ~= "player" then return nil end
+  if IsPlayerSpell then
+    local ok, kennt = pcall(IsPlayerSpell, a.id)
+    if ok and kennt then return nil end
+  end
   return a
 end
 

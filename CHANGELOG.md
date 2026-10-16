@@ -1,5 +1,40 @@
 # Campfire Buddy changelog
 
+## 1.0.0 (2026-10-16)
+
+The first full release. The music, the minigames and all the art in Campfire Buddy are made for it by Darynus. Have fun at the campfire!
+
+### Nine campfire games, rebuilt
+- **Games tab** in the window, plus Shift-click on the minimap button: every game with your best score, one click to play. The game window is always at least Huge, and a legend under every game shows the points.
+- **Whack-a-Murloc**: real 3D murlocs climb out of holes dug into a forest meadow, roar, wave or laugh, and flinch when you bonk them. Golden murlocs are worth 3, bombs cost 3, and never bonk the sheep.
+- **Camp Defense**: a real map with a winding path from the lake to your tent and nine stone pads. Five towers (fire, frost, storm with chain lightning, mortar and spear) with upgrades, fast runners, armored brutes, healing oracles and King Mrgl in wave ten. Fireballs leave trails, bombs arc and explode, lightning jumps from murloc to murloc. Call waves early for bonus embers, double speed with the arrows.
+- **Campfire Fishing**: hold to cast, wait through the nibbles for the real bite, then reel with feeling so the line does not snap. Nine fish, soggy boots and rusty cans, a fish book with your biggest catches and Murky cheering from the shore. Eight worms per game.
+- **Murloc Race**: three real murlocs sprint along a moonlit beach. Bet coins at the odds, cheer your runner on three times per race, photo finish included. Its own galloping music.
+- **Marshmallow**: roast on a forked branch right over a close-up campfire, turn it, blow it out when it catches fire and eat it golden on both sides.
+- **Spark Catcher**: catch the rising sparks with a glass jar that follows your mouse, combos up to x4, empty a full jar for a bonus and dodge the ash.
+- **Murloc Dive** (new): swim a real murloc through a moonlit lake between kelp, rocks, nets and anchors, and grab pearls and golden shells.
+- **Log Stack**: logs drop and bounce, the sawn off piece tumbles away, chips fly and a perfect drop flashes gold.
+- **Camp Memory**: Easy or Hard, round after round with a time bonus.
+- **Our own music**: four tunes written for Campfire Buddy, calm for fishing and memory, fast for the action games, a gallop for the race. Every game ends with Play again and Games.
+
+### Murloc show
+- A new night scene with a visible path. The murloc walks on the ground all the way, strolls, picks things up and takes a rest, no more swimming through the air.
+- Emote button: Wave, Thank you, Cheer, Dance, Laugh, Applaud, Bow or Roar, and the murloc answers. Size Normal, Large or Huge.
+- Ten finales, fireworks and confetti only where they belong.
+
+### Your camp
+- **See what you get before you sit**: the Camp tab shows in big letters what Camp Benefits will give you after a minute at this fire, for example +12 Attack power and +14 Strength. Values are learned from your Camp Benefits and shown for every object in the Camp kit tab.
+- **Is it worth sitting down?** Campfire Buddy knows your class and spec, tells you how many bonuses at this fire help you and dims the ones that do not.
+- **Objects from strangers**: objects that players outside your group place at your fire are noticed too, even without name plates.
+- **Campfires on the world map**: fires you visited or lit, and your group's, with objects and time left.
+- **Full camp**: a fourth object at a full Basic Campfire replaces the oldest one, like in the game.
+
+### Fixes
+- A buff you cast yourself, like Demon Skin, or got from another player is never offered as your food buff.
+- Texts and legends always stay inside the game window.
+- The minimap button keeps its place when the minimap changes size and moves to a free spot if another button covers it. `/campfire minimap` brings it back.
+- All large images are now in the game's own compressed texture format: Campfire Buddy is about 8 MB instead of 26 MB.
+
 ## 0.2.0-beta (2026-10-16)
 
 - **New minimap icon**: a small rendered campfire. Prefer the murloc or the game's Camp symbol? Pick it in Settings next to the minimap button.
