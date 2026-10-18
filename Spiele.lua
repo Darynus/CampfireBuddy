@@ -165,6 +165,54 @@ function SP:Bauen()
   legende:Hide()
   f.legende = legende
 
+  -- Lautstärke der Spiele unter dem Menü, an der Stelle der Legende (Patrick, 18. Okt): Musik und
+  -- eigene Effekte, das Spiel selbst bleibt unberührt (Musik.lua)
+  local laut = CreateFrame("Frame", nil, f)
+  laut:SetSize(SP.BREITE, 18)
+  laut:SetPoint("BOTTOM", 0, 11)
+  laut.titel = S.schrift(laut, "GameFontHighlightSmall", F.text)
+  laut.titel:SetPoint("RIGHT", laut, "CENTER", -62, 0)
+  laut.titel:SetText(L.GAMES_VOLUME)
+  local regler = S.vorlage("Slider", laut, "OptionsSliderTemplate") or CreateFrame("Slider", nil, laut)
+  regler:SetOrientation("HORIZONTAL")
+  regler:SetSize(110, 16)
+  regler:SetPoint("LEFT", laut, "CENTER", -52, 0)
+  regler:SetMinMaxValues(0, 3)
+  regler:SetValueStep(1)
+  if regler.SetObeyStepOnDrag then regler:SetObeyStepOnDrag(true) end
+  -- Die Vorlage schreibt Low, High und einen Titel daneben, die braucht es hier nicht
+  for _, k in ipairs({ "Low", "High", "Text" }) do
+    if type(regler[k]) == "table" and regler[k].SetText then regler[k]:SetText("") end
+  end
+  if not regler.GetThumbTexture or not regler:GetThumbTexture() then
+    -- ohne Vorlage: flache Schiene mit dem Regler-Knopf des Spiels
+    local schiene = regler:CreateTexture(nil, "BACKGROUND")
+    schiene:SetTexture(S.WEISS)
+    schiene:SetVertexColor(0.3, 0.24, 0.22, 1)
+    schiene:SetHeight(4)
+    schiene:SetPoint("LEFT")
+    schiene:SetPoint("RIGHT")
+    regler:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+  end
+  regler:EnableMouseWheel(true)
+  regler:SetScript("OnMouseWheel", function(self, d)
+    self:SetValue(math.max(0, math.min(3, (self:GetValue() or 3) + (d > 0 and 1 or -1))))
+  end)
+  laut.wert = S.schrift(laut, "GameFontHighlightSmall", F.leise)
+  laut.wert:SetPoint("LEFT", regler, "RIGHT", 10, 0)
+  regler:SetScript("OnValueChanged", function(_, wert)
+    wert = math.floor((wert or 3) + 0.5)
+    laut.wert:SetText(L.VOLUME_STEPS[wert] or "")
+    if ns.db.spielLautstaerke ~= wert then
+      ns.db.spielLautstaerke = wert
+      ns.Musik:Einstellung()
+    end
+  end)
+  laut.regler = regler
+  S.tooltip(regler, L.GAMES_VOLUME, L.GAMES_VOLUME_HELP)
+  laut:Hide()
+  f.lautstaerke = laut
+
   -- Schwebende Zurufe ("+3", "BOOM!", "Mrgl!") über allem, steigen auf und verblassen
   local ruf = CreateFrame("Frame", nil, bereich)
   ruf:SetAllPoints()
@@ -239,6 +287,10 @@ function SP:Menue(ausShow)
   end
   self.menue:Show()
   self.rahmen.legende:Hide()
+  local laut = self.rahmen.lautstaerke
+  laut.regler:SetValue(ns.Musik.Stufe())
+  laut.wert:SetText(L.VOLUME_STEPS[ns.Musik.Stufe()] or "")
+  laut:Show()
   ns.Musik:Spielen("arcade")
   self.rahmen.titel:SetText(L.GAMES_TITLE)
   self.rahmen.stand:SetText("")
@@ -250,6 +302,7 @@ end
 -- Stufen zur Wahl, bevor das Spiel startet (die zuletzt gewählte steht vorn im Titel)
 function SP:Waehlen(spiel)
   self.menue:Hide()
+  self.rahmen.lautstaerke:Hide()
   self.rahmen.titel:SetText(spiel.name)
   self.rahmen.stand:SetText("")
   self.rahmen.ergebnis:SetText("")
@@ -272,6 +325,7 @@ function SP:Spielen(key, stufe)
   self:Bauen()
   self:Anhalten()
   self.menue:Hide()
+  self.rahmen.lautstaerke:Hide()
   self.tafel:Hide()
   for _, s in ipairs(self.liste) do if s.rahmen then s.rahmen:Hide() end end
   if spiel.stufen and not stufe then return self:Waehlen(spiel) end

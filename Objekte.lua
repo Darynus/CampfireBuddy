@@ -29,7 +29,7 @@ O.FAMILIE = {
   verband = { konflikt = { 1243, 21562 }, aura = 1230124 },    -- Power Word: Fortitude, Prayer of Fortitude
   fisch = { konflikt = { 20217, 25898 }, aura = 1230098 },     -- Blessing of Kings, Greater
   kerze = { konflikt = { 1459, 23028 }, aura = 1229513 },      -- Arcane Intellect, Arcane Brilliance
-  zelt = { aura = 1229451 },
+  zelt = { aura = 1229451 },                                   -- Boosted Rest (im Spiel bestätigt, 18. Okt)
   stein = { konflikt = { 19740, 25782 }, aura = 1230164 },     -- Blessing of Might, Greater
   stuhl = { konflikt = { 24907 }, aura = 1229519 },            -- Moonkin Aura
   banner = { konflikt = { 14752, 27681 }, aura = 1229718 },    -- Divine Spirit, Prayer of Spirit

@@ -1,5 +1,14 @@
 # Campfire Buddy changelog
 
+## 1.1.1 (2026-10-18)
+
+- **Camp check with icons**: the objects at the fire sit in a row of slots right under the title, so you see at a glance what stands there. Point at one for its tooltip with your value. Objects nobody has seen lately are grey, and slots nobody has checked say they may simply be empty.
+- **Campfire button**: carry a campfire kit and a small button of its own shows up away from the fire, apart from the Camp Kit. One click places the kit. Without a kit it still offers to light your own campfire when Camp Benefits are missing. Move it like the bar, or switch it off under Options.
+- **Game volume**: a slider under the campfire games turns their music and sounds down to 66%, 33% or off. Your game's own volume stays as it is.
+- **Fix**: camp objects that share their name with things in towns (Tanning Rack, Anvil, Spinning Wheel, Loom) are recognized again. With camp object lines in their tooltip right when you point at them, otherwise as soon as their bonus arrives at this fire: a Tanning Rack counts once you get "Boosted Rest" there.
+- **Fix**: "Is this your food?" no longer asks about class buffs like Power Word: Fortitude, or about buffs from other players.
+- **Fix**: on the Buffs page, "food" no longer covers the spell ID.
+
 ## 1.1.0 (2026-10-18)
 
 - **New game: Sneaky Mrgl**, the tenth campfire game. Agent Mrgl, in his sneaking suit with bandana, silenced pistol and fish bomb, sneaks into a Defias camp at night to steal back the fish. Your murloc follows the mouse. Grab up to three fish and bring them to the stream: the more you carry at once, the more they are worth, golden fish count triple and a trip without any alarm gives one and a half times the points. The guards are real Defias with vision cones. When one sees you, a "?" fills up above his head and he turns towards you, only when it is full he shouts and chases you until you lose him. Every two fish you bring home, another Defias joins and they all get faster. Hide under the cardboard box with a right-click, a box that stands still is just a box. Own music for sneaking and for the alarm, own sound effects.

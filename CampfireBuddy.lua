@@ -42,11 +42,13 @@ local STANDARD = {
   essenIcons = {},       -- [Datei-ID des Symbols] = Name, ebenso
   essenXp = {},          -- [Zauber-ID] = gibt dieses Essen den Erfahrungsbonus? (Buffs.lua)
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
+  feuerZeigen = true,    -- eigener Knopf fürs Lagerfeuer abseits des Feuers (Kit.lua)
   checkZeigen = true,    -- Lager-Check am linken Rand (LagerCheck.lua)
   check = {},            -- Position des Lager-Checks
   showAn = true,         -- Murloc-Show während der Sitz-Minute
   murlocTon = true,      -- Murloc-Schrei in Show und Spielen
   spielMusik = true,     -- eigene Arcade-Musik in den Spielen (Musik.lua)
+  spielLautstaerke = 3,  -- Regler unter den Spielen: 0 aus, 1 = 33 %, 2 = 66 %, 3 = 100 %
   showGroesse = "gross", -- Größe von Show und Spielen: "normal", "gross", "riesig"
   rekorde = {},          -- Rekord je Spiel
   fangbuch = {},         -- Fänge beim Lagerfeuer-Angeln
@@ -54,7 +56,7 @@ local STANDARD = {
   -- show, spiel: Positionen von Show und Spiel
   gewarnt = {},          -- [Zauber-ID] = Ablaufzeit, zu der schon gewarnt wurde
   abgelaufen = {},       -- [Zauber-ID] = Ablaufzeit, deren Ende schon gemeldet wurde
-  -- kit: Position des Camp Kits
+  -- kit: Position des Camp Kits, feuerKnopf: Position des Lagerfeuer-Knopfs
   -- fenster: Position des Hauptfensters
 }
 

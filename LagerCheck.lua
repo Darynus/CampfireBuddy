@@ -21,6 +21,10 @@ local C = {}
 ns.LagerCheck = C
 
 local BREITE, RAND = 260, 10
+-- Plätze am Feuer als Symbole unter der Überschrift (Patrick, 18. Okt: "schnell und einfach
+-- überblickbar, wie die Gegenstände aussehen"), wie im Reiter Camp, nur kleiner
+local MAX_PLAETZE, PLATZ, PLATZ_ABSTAND = 10, 22, 24
+local RAND_GRAU = { 0.38, 0.38, 0.42, 1 }
 -- Gewicht eines Bonus nach Nutzen für den Char (Empfehlung: 2 gut, 1 etwas, 0 kaum)
 local GEWICHT = { [0] = 0.15, [1] = 0.5, [2] = 1 }
 local BALD = 10 * 60   -- Camp Benefits unter 10 Minuten: Hinsetzen lohnt schon wegen der Zeit
@@ -167,6 +171,32 @@ function C:Bauen()
   f.titel:SetText(L.CHECK_TITLE)
   f.feuer = S.schrift(f, "GameFontHighlightSmall", F.leise)
   f.feuer:SetPoint("TOPRIGHT", -RAND, -RAND - 1)
+  -- Plätze: belegt mit dem Symbol des Objekts, frei als leerer Kasten. Grüner Rand: eben gesehen,
+  -- grau und blass: lange nicht gesehen oder nur vermutet. Maus drüber: Tooltip wie im Spiel.
+  f.plaetze = {}
+  for i = 1, MAX_PLAETZE do
+    local p = S.spielKasten(f, "Frame")
+    p:SetSize(PLATZ, PLATZ)
+    p:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", (i - 1) * PLATZ_ABSTAND, -6)
+    p.leer = p:CreateTexture(nil, "BACKGROUND", nil, 1)
+    p.leer:SetPoint("TOPLEFT", 2, -2)
+    p.leer:SetPoint("BOTTOMRIGHT", -2, 2)
+    p.leer:SetTexture("Interface\\Buttons\\UI-Slot-Background")
+    p.leer:SetTexCoord(0, 0.640625, 0, 0.640625)
+    p.icon = p:CreateTexture(nil, "ARTWORK")
+    p.icon:SetPoint("TOPLEFT", 2, -2)
+    p.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    p:EnableMouse(true)
+    O.TooltipAn(p, function(self) return self.eintrag and self.eintrag.o end, function(self, tt)
+      if self.eintrag and not C.Sicher(self.eintrag) then
+        tt:AddLine(" ")
+        tt:AddLine(L.CHECK_SLOT_STALE, F.leise[1], F.leise[2], F.leise[3], true)
+      end
+    end, L.CAMP_SLOT_FREE)
+    p:Hide()
+    f.plaetze[i] = p
+  end
   f.urteil = S.absatz(f, BREITE - 2 * RAND, F.erfolg, "GameFontNormalLarge")
   f.urteil:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", 0, -6)
   f.text = S.absatz(f, BREITE - 2 * RAND, F.text, "GameFontHighlightSmall")
@@ -188,6 +218,31 @@ function C:Aktualisieren()
 
   local feuer = LG.feuer and (O.Anzeige(LG.feuer.o)) or L.MAP_FIRE
   f.feuer:SetText(r.plaetze and string.format(L.CHECK_SLOTS, feuer, r.bekannt, r.plaetze) or feuer)
+  -- Plätze: so viele wie das Feuer hat, bei unbekannter Größe so viele wie bekannt, mindestens 3
+  local objekte = {}
+  for _, e in pairs(LG.objekte) do table.insert(objekte, e) end
+  table.sort(objekte, function(a, b) return tostring(a.o.spell) < tostring(b.o.spell) end)
+  local zeigen = math.min(MAX_PLAETZE, r.plaetze or math.max(3, #objekte))
+  for i, p in ipairs(f.plaetze) do
+    local e = objekte[i]
+    p:SetShown(i <= zeigen)
+    p.eintrag = e
+    if e then
+      local _, icon = O.Anzeige(e.o)
+      local sicher = C.Sicher(e)
+      p.icon:SetTexture(icon)
+      p.icon:SetDesaturated(not sicher)
+      p.icon:SetAlpha(sicher and 1 or 0.6)
+      p.icon:Show()
+      S.randFarbe(p, sicher and F.erfolg or RAND_GRAU)
+    else
+      p.icon:Hide()
+      S.randFarbe(p, RAND_GRAU)
+    end
+  end
+  f.urteil:ClearAllPoints()
+  f.urteil:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", 0, -(6 + (zeigen > 0 and PLATZ + 6 or 0)))
+  f.platzHoehe = zeigen > 0 and PLATZ + 6 or 0
   local u = URTEIL[r.urteil]
   f.urteil:SetText(L[u[1]])
   f.urteil:SetTextColor(rgba(F[u[2]]))
@@ -202,12 +257,12 @@ function C:Aktualisieren()
   abschnitt(L.CHECK_LOSE, r.weg, true)
   if #r.gleich > 0 then
     local namen = {}
-    for _, e in ipairs(r.gleich) do table.insert(namen, O.FAMILIE[e.fam].bonus) end
+    for _, e in ipairs(r.gleich) do table.insert(namen, symbol(e.o) .. O.FAMILIE[e.fam].bonus) end
     table.insert(zeilen, farbe(F.hinweis, L.CHECK_KEEP) .. " " .. farbe(F.leise, table.concat(namen, ", ")))
   end
   if #r.unsicher > 0 then
     local namen = {}
-    for _, e in ipairs(r.unsicher) do table.insert(namen, O.FAMILIE[e.fam].bonus) end
+    for _, e in ipairs(r.unsicher) do table.insert(namen, symbol(e.o) .. O.FAMILIE[e.fam].bonus) end
     table.insert(zeilen, farbe(F.hinweis, L.CHECK_MAYBE) .. " " .. farbe(F.leise, table.concat(namen, ", ")))
   end
   if #r.neu == 0 and #r.weg == 0 and #r.gleich == 0 and #r.unsicher == 0 then
@@ -229,7 +284,7 @@ function C:Aktualisieren()
   end
   f.text:SetText(table.concat(zeilen, "\n"))
 
-  local hoehe = RAND + 14 + 6 + (f.urteil:GetStringHeight() or 18) + 6 + (f.text:GetStringHeight() or 60) + RAND
+  local hoehe = RAND + 14 + 6 + (f.platzHoehe or 0) + (f.urteil:GetStringHeight() or 18) + 6 + (f.text:GetStringHeight() or 60) + RAND
   f:SetHeight(math.max(80, hoehe))
   f:Show()
 end

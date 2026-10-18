@@ -199,9 +199,10 @@ local function buffZeile(liste, breite, verfolgt)
   z.knopf:SetHeight(20)
   z.fest = S.schrift(z, "GameFontHighlightSmall", F.leise)
   z.fest:SetPoint("RIGHT", -12, 0)
-  -- "food" steht dort, wo sonst der Knopf Food ist, damit Track daneben frei bleibt
+  -- "food" links neben der ID, nicht fest darüber: An fester Stelle lag es auf der Zahl (Patricks
+  -- Screenshot 18. Okt, Well Fed)
   z.essenFest = S.schrift(z, "GameFontHighlightSmall", F.erfolg)
-  z.essenFest:SetPoint("RIGHT", -100, 0)
+  z.essenFest:SetPoint("RIGHT", z.id, "LEFT", -10, 0)
   return z
 end
 
@@ -736,7 +737,8 @@ local function bauenEinstellungen()
       danach = function() ns.Minimap:Sichtbarkeit() end },
     { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -299, breite = B / 2 - 4 },
     { feld = "checkZeigen", text = L.OPT_CHECK, hilfe = L.OPT_CHECK_HELP, y = -299, x = B / 2, breite = B / 2 },
-    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -320 },
+    { feld = "feuerZeigen", text = L.OPT_FIRE_BUTTON, hilfe = L.OPT_FIRE_BUTTON_HELP, y = -320, breite = B / 2 - 4 },
+    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -320, x = B / 2, breite = B / 2 },
     { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -341 },
     { feld = "karteZeigen", text = L.OPT_MAP, hilfe = L.OPT_MAP_HELP, y = -362 },
   }

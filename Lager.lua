@@ -6,10 +6,11 @@
 --      (C_Item.GetItemSpell), die der Feuer stehen in Objekte.lua.
 --   2. Tooltip von Camp Benefits: eine Zeile je Objekt ("Name: Wirkung"). Ingenieurs- und
 --      Koch-Objekte fehlen dort.
---   3. Maus über dem Feuer oder einem Objekt (Tooltip eines Spielobjekts). Nicht bei Objekten,
---      die genauso heißen wie normale Dinge im Dorf (Amboss, Webstuhl, Spinnrad, Gerbgestell,
---      Objekte.lua "mehrdeutig"): Das Spiel nennt bei Objekten weder Position noch Kennung
---      (Patricks Fund in Goldshire, 16. Okt).
+--   3. Maus über dem Feuer oder einem Objekt (Tooltip eines Spielobjekts). Objekte, die genauso
+--      heißen wie normale Dinge im Dorf (Amboss, Webstuhl, Spinnrad, Gerbgestell, Objekte.lua
+--      "mehrdeutig"), zählen nur, wenn ihr Tooltip Zeilen eines Lager-Objekts hat (Bonus je
+--      Levelbereich oder der Beruf). Das Spiel nennt bei Objekten weder Position noch Kennung
+--      (Patricks Fund in Goldshire, 16. Okt), das Gerbgestell am Feuer fehlte deshalb (18. Okt).
 --   4. Aufstellen durch Fremde in der Nähe (Namensplaketten, Ziel, Maus), solange man am Feuer ist,
 --      und ohne Namensplaketten über das Kampflog (LG:Kampflog).
 -- Die Boni selbst stehen in Forever alle im einen Buff Camp Benefits (Zeilen "Objekt: Wirkung"),
@@ -104,6 +105,7 @@ function LG:Neu()
   self.seit = ns.jetzt()
   self.feuer = nil
   self.objekte = {}
+  self.vermutet = {}
   self.tipp = nil
   self.gelesen = nil
   self.kartenNr, self.feuerZeit, self.weltfeuer = nil, nil, nil
@@ -234,7 +236,8 @@ local function wiederholen(self, ersteAnkunft)
   if m.feuer and nachZauber[m.feuer] then self.feuer = { o = nachZauber[m.feuer], quelle = m.feuerQuelle or "cast" } end
   for _, e in ipairs(m.objekte or {}) do
     local o = type(e) == "table" and nachZauber[e.spell]
-    -- Maus-Funde bei mehrdeutigen Objekten zählen nicht (siehe oben), auch nicht aus älteren Ständen
+    -- Maus-Funde bei mehrdeutigen Objekten ohne Lager-Zeilen zählen nicht (siehe oben), auch
+    -- nicht aus älteren Ständen. Mit Lager-Zeilen heißt die Quelle "tooltip".
     if o and not (e.quelle == "maus" and o.mehrdeutig) then
       self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true, zeit = e.zeit, gesehen = e.gesehen or e.zeit }
     end
@@ -494,11 +497,19 @@ function LG:Pruefen()
     end
     self:OrtMerken(true)
   end
-  -- Bonus-Buffs: Familie da, Stufe unbekannt (nur, wenn nichts Genaueres bekannt ist)
+  -- Bonus-Buffs, frisch an diesem Feuer bekommen: ein Objekt dieser Familie steht hier. War eines
+  -- mit der Maus vermutet (Gerbgestell, nur der Name im Tooltip), ist es jetzt bestätigt, sonst
+  -- Familie da, Stufe unbekannt. Beim Zelt ist der Bonus-Buff "Boosted Rest": Er kommt, sobald ein
+  -- Zelt-Objekt Erholungsbonus gegeben hat (Patricks Screenshot 18. Okt, Gerbgestell am Feuer).
   for fam, f in pairs(O.FAMILIE) do
     local a = f.aura and ids[f.aura]
-    if type(a) == "table" and frisch(self, a) and not self.objekte[fam] and fam ~= "zelt" then
-      self.objekte[fam] = { o = O.BASIS[fam], quelle = "bonus", genau = false }
+    if type(a) == "table" and frisch(self, a) and not self.objekte[fam] then
+      local v = self.vermutet and self.vermutet[fam]
+      if v then
+        self:Merken(v.o, "tooltip")
+      else
+        self.objekte[fam] = { o = O.BASIS[fam], quelle = "bonus", genau = false }
+      end
       neu = true
     end
   end
@@ -606,11 +617,35 @@ function LG:Zuhoeren(an)
   end
 end
 
--- Maus über einem Spielobjekt am Feuer: Feuer und Objekte mit eindeutigem Namen
-function LG:Objekt(text)
+-- Hat der Tooltip Zeilen, die nur ein Lager-Objekt hat? Bonus je Levelbereich ("+21 Stamina
+-- (24-35)") oder der Name des Berufs, der es baut (vom Spiel zur Berufs-ID genannt). Ein
+-- Gerbgestell oder Amboss im Dorf hat nur seinen Namen.
+local function lagerZeilen(o, zeilen)
+  if type(zeilen) ~= "table" then return false end
+  if O.StufenAus(zeilen) then return true end
+  local beruf = o.beruf and O.BerufName(o.beruf)
+  if not beruf or beruf == "?" then return false end
+  for i = 2, #zeilen do
+    local z = zeilen[i]
+    local t = type(z) == "table" and z.leftText or z
+    if type(t) == "string" and not geheim(t) and string.find(t, beruf, 1, true) then return true end
+  end
+  return false
+end
+LG.LagerZeilen = lagerZeilen
+
+-- Maus über einem Spielobjekt am Feuer. Mehrdeutige Namen nur mit Lager-Zeilen im Tooltip. Ohne
+-- solche Zeilen ist es nur vermutet: Das Gerbgestell im Lager zeigt im Tooltip nur seinen Namen
+-- (Patrick, 18. Okt), genau wie eines im Dorf. Bestätigt wird es, sobald der Bonus seiner Familie
+-- frisch an diesem Feuer kommt (beim Gerbgestell "Boosted Rest", LG:Pruefen).
+function LG:Objekt(text, zeilen)
   if not self.aktiv or imKampf() then return end
   local o = LG.Erkennen(text)
-  if o and not o.mehrdeutig then self:Merken(o, "maus") end
+  if not o then return end
+  if not o.mehrdeutig then return self:Merken(o, "maus") end
+  if lagerZeilen(o, zeilen) then return self:Merken(o, "tooltip") end
+  self.vermutet = self.vermutet or {}
+  self.vermutet[o.familie] = { o = o, zeit = serverZeit() }
 end
 
 -- Maus über einem Objekt (auch fern vom eigenen Feuer): Werte je Levelbereich aus dem Tooltip des
@@ -632,7 +667,7 @@ ns.beimStart(function()
     pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Object, function(_, daten)
       local zeile = type(daten) == "table" and type(daten.lines) == "table" and daten.lines[1]
       if type(zeile) == "table" then
-        LG:Objekt(zeile.leftText)
+        LG:Objekt(zeile.leftText, daten.lines)
         LG:WerteLernen(daten.lines)
       end
     end)

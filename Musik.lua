@@ -13,6 +13,27 @@ local MU = {}
 ns.Musik = MU
 
 local PFAD = "Interface\\AddOns\\CampfireBuddy\\Media\\Musik\\"
+local TOENE = "Interface\\AddOns\\CampfireBuddy\\Media\\Toene\\"
+-- Lautstärkeregler unter den Spielen (Patrick, 18. Okt): 0 aus, 1 = 33 %, 2 = 66 %, 3 = 100 %. Ein
+-- Add-on kann einen Ton nicht leiser abspielen, deshalb liegen Musik und Spiel-Effekte in drei
+-- Fassungen da (tools/musik/leiser.js). Die Lautstärke des Spiels selbst bleibt unberührt.
+local ENDUNG = { [1] = "_33", [2] = "_66", [3] = "" }
+
+function MU.Stufe()
+  local s = ns.db and ns.db.spielLautstaerke
+  if type(s) ~= "number" or s < 0 or s > 3 then return 3 end
+  return math.floor(s)
+end
+
+function MU.Datei(name) return PFAD .. MU.STUECKE[name] .. (ENDUNG[MU.Stufe()] or "") .. ".ogg" end
+
+-- Effekt eines Spiels (Media/Toene/<name>.ogg) in der Lautstärke des Reglers, aus bei Stufe 0 oder
+-- wenn die lustigen Töne aus sind
+function MU.Effekt(name)
+  local stufe = MU.Stufe()
+  if stufe == 0 or not (ns.db and ns.db.murlocTon and PlaySoundFile) then return end
+  pcall(PlaySoundFile, TOENE .. name .. (ENDUNG[stufe] or "") .. ".ogg", "SFX")
+end
 MU.STUECKE = { arcade = "Arcade", mayhem = "Mayhem", teich = "Teich", rennen = "Rennen", schleichen = "Schleichen",
   alarm = "Alarm" }
 -- Länge in Sekunden (ffprobe), für die Wiederholung über den Effektkanal
@@ -30,7 +51,7 @@ end
 function MU:Schleife(name)
   self.nummer = (self.nummer or 0) + 1
   local nummer = self.nummer
-  local ok, spielt, griff = pcall(PlaySoundFile, PFAD .. MU.STUECKE[name] .. ".ogg", "SFX")
+  local ok, spielt, griff = pcall(PlaySoundFile, MU.Datei(name), "SFX")
   if not (ok and spielt) then
     self.laeuft = nil
     return
@@ -45,13 +66,13 @@ end
 
 function MU:Spielen(name)
   self.gewuenscht = name
-  if not (ns.db and ns.db.spielMusik) then return self:Stop(true) end
+  if not (ns.db and ns.db.spielMusik) or MU.Stufe() == 0 then return self:Stop(true) end
   if self.laeuft == name then return end
   if not MU.STUECKE[name] then return end
   -- Ein Stück über den Effektkanal läuft weiter, bis man es anhält
   if self.art == "effekt" then self:Stop(true) end
   if spielMusikAn() and PlayMusic then
-    local ok = pcall(PlayMusic, PFAD .. MU.STUECKE[name] .. ".ogg")
+    local ok = pcall(PlayMusic, MU.Datei(name))
     self.laeuft, self.art = ok and name or nil, ok and "musik" or nil
   elseif PlaySoundFile then
     self:Schleife(name)
@@ -72,7 +93,9 @@ function MU:Stop(behalten)
   self.laeuft, self.art, self.griff = nil, nil, nil
 end
 
--- Schalter in den Optionen umgelegt
+-- Schalter in den Optionen umgelegt oder Lautstärke geändert: das Stück neu in der passenden Fassung
 function MU:Einstellung()
-  if ns.db.spielMusik and self.gewuenscht then self:Spielen(self.gewuenscht) else self:Stop(true) end
+  local stueck = self.gewuenscht
+  self:Stop(true)
+  if ns.db.spielMusik and stueck then self:Spielen(stueck) end
 end

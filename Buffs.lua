@@ -157,6 +157,16 @@ function B:Lesen()
       ids[a.id] = a
       if type(a.name) == "string" then namen[a.name] = true end
     end
+    -- Bonus-Auren der Lager-Familien, die nicht unter den Buffs stehen, gezielt abfragen: "Boosted
+    -- Rest" (Zelt-Familie) ist im Spiel ein Debuff (isHarmful, Patricks /dump 18. Okt) und fehlt in
+    -- der Liste der hilfreichen Auren. GetPlayerAuraBySpellID findet auch Debuffs.
+    local O = ns.Objekte
+    for _, f in pairs(O and O.FAMILIE or {}) do
+      if f.aura and not ids[f.aura] then
+        local a = einzeln(f.aura)
+        if a then ids[f.aura] = a end
+      end
+    end
     self.ids, self.namen = ids, namen
     for _, a in ipairs(alle) do
       if verfolgt[a.id] then neu[a.id] = a end
@@ -292,6 +302,26 @@ function B:Liste()
   return l
 end
 
+-- Klassen-Buffs, die einen Lager-Bonus ersetzen (Objekte.lua, O.FAMILIE konflikt): Power Word:
+-- Fortitude, Mark of the Wild, Arcane Intellect, die Segen und so weiter. Nie Essen. Über die
+-- Zauber-ID und den Namen, den das Spiel zu dieser ID nennt (höhere Ränge heißen gleich).
+local klassenNamen
+local function klassenBuff(a)
+  local O = ns.Objekte
+  if not (O and O.FAMILIE) then return false end
+  if not klassenNamen then
+    klassenNamen = { ids = {}, namen = {} }
+    for _, f in pairs(O.FAMILIE) do
+      for _, id in ipairs(f.konflikt or {}) do
+        klassenNamen.ids[id] = true
+        local n = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+        if type(n) == "string" and n ~= "" then klassenNamen.namen[n] = true end
+      end
+    end
+  end
+  return klassenNamen.ids[a.id] or (type(a.name) == "string" and klassenNamen.namen[a.name]) or false
+end
+
 -- Kandidat für "ist mein Essen": vor höchstens 2 Minuten dazugekommen, noch aktiv, kein Essen erkannt
 function B:EssenKandidat()
   if self:Essen() or not self.neuester then return nil end
@@ -303,7 +333,9 @@ function B:EssenKandidat()
   if B.IstEssen(a) then return nil end
   -- Kein Essen: Buffs von anderen (Essen gibt man sich selbst) und eigene Zauber des Chars, zum
   -- Beispiel Demon Skin (Patricks Screenshot, 16. Okt). Erkannt an der Zauber-ID, nicht am Namen.
-  if a.quelle and a.quelle ~= "player" then return nil end
+  -- Bei Spielern außerhalb der Gruppe nennt das Spiel keine Quelle: dann ist es auch kein Essen
+  -- (Patrick, 18. Okt: Power Word: Fortitude eines Fremden wurde als Essen angeboten).
+  if a.quelle ~= "player" or klassenBuff(a) then return nil end
   if IsPlayerSpell then
     local ok, kennt = pcall(IsPlayerSpell, a.id)
     if ok and kennt then return nil end

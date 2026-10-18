@@ -50,7 +50,6 @@ local NEUE_WACHE_JE = 2                              -- heimgebrachte Fische je 
 local START_WACHEN = 2
 local FISCH_BILD = 40
 local TEIL_FUSS = 10 / 32                            -- Gegenstände: Fußpunkt über dem unteren Bildrand
-local TOENE = "Interface\\AddOns\\CampfireBuddy\\Media\\Toene\\"
 
 local ANIM = { stehen = { 0 }, gehen = { 4, 0 }, rennen = { 5, 4, 0 }, alarm = { 74, 55, 0 }, fangen = { 17, 16, 0 } }
 
@@ -85,10 +84,8 @@ local SN = {
 
 -- Kleinkram ----------------------------------------------------------------------------------------
 
-local function ton(name)
-  if not (ns.db and ns.db.murlocTon and PlaySoundFile) then return end
-  pcall(PlaySoundFile, TOENE .. name .. ".ogg", "SFX")
-end
+-- Eigene Effekte in der Lautstärke des Reglers unter den Spielen (Musik.lua)
+local function ton(name) ns.Musik.Effekt(name) end
 
 local function teil(t, name)
   local k = KARTE.teile[name]

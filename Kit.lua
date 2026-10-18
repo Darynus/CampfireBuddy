@@ -8,6 +8,9 @@
 -- Das Spiel führt die Aktion nur bei einem echten Klick aus, ein Klick ist genau eine Aktion.
 -- Sichere Knöpfe dürfen im Kampf nicht ein- oder ausgeblendet oder verschoben werden. Deshalb
 -- ändert die Leiste sich nur außerhalb des Kampfes und holt Änderungen danach nach.
+-- Das Lagerfeuer hat einen eigenen kleinen Rahmen abseits der Leiste (Patrick, 18. Okt: nicht in
+-- der Reihe mit den Objekten): Trägt der Char einen Bausatz, ist der Knopf immer da, außer am
+-- Feuer. Ohne Bausatz nur, wenn Camp Benefits fehlen oder bald enden, dann zum Anzünden.
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 local F, rgba = S.F, S.rgba
@@ -106,48 +109,62 @@ function K.Rand(b)
   S.randFarbe(b, b.vorschlag and F.akzent or F.rand)
 end
 
-function K:Bauen()
-  if self.rahmen then return end
+-- Flacher, verschiebbarer Rahmen für sichere Knöpfe. feld: Schlüssel der Position in ns.db
+local function rahmenBauen(feld, titel, ...)
   local f = S.kasten(UIParent, "Frame", F.grund, F.rand)
-  self.rahmen = f
+  f.feld = feld
   f:SetSize(100, GROESSE + 2 * RAND + 14)
-  -- Über der Buff-Leiste: Die wächst nach unten, wenn Zeilen dazukommen
-  ns.Leiste.Position(f, ns.db.kit, "TOP", 0, -74)
+  ns.Leiste.Position(f, ns.db[feld], ...)
   f:SetFrameStrata("MEDIUM")
   f:SetClampedToScreen(true)
   f:EnableMouse(true)
   f:SetMovable(true)
   f:RegisterForDrag("LeftButton")
   f:SetScript("OnDragStart", function(self)
-    if not ns.db.gesperrt and not imKampf() then self:StartMoving() K.zieht = true end
+    if not ns.db.gesperrt and not imKampf() then self:StartMoving() K.zieht = self end
   end)
   f:SetScript("OnDragStop", function(self)
-    if not K.zieht then return end
-    K.zieht = false
+    if K.zieht ~= self then return end
+    K.zieht = nil
     self:StopMovingOrSizing()
-    if not imKampf() then ns.db.kit = ns.Leiste.Merken(self) end
+    if not imKampf() then ns.db[feld] = ns.Leiste.Merken(self) end
   end)
   S.schatten(f)
   f.titel = S.schrift(f, "GameFontHighlightSmall", F.akzent)
-  f.titel:SetPoint("TOPLEFT", RAND, -3)
-  f.titel:SetText(L.KIT_TITLE)
+  f.titel:SetText(titel)
   f:Hide()
-  -- Abklingzeit der Objekte einmal pro Sekunde (nur Texte und Farbe, das geht auch im Kampf)
+  return f
+end
+
+function K:Bauen()
+  if self.rahmen then return end
+  -- Über der Buff-Leiste: Die wächst nach unten, wenn Zeilen dazukommen
+  local f = rahmenBauen("kit", L.KIT_TITLE, "TOP", 0, -74)
+  self.rahmen = f
+  f.titel:SetPoint("TOPLEFT", RAND, -3)
+  -- Lagerfeuer: rechts neben der Buff-Leiste (die steht mittig, 230 breit)
+  local feuer = rahmenBauen("feuerKnopf", L.FIRE_TITLE, "TOPLEFT", UIParent, "TOP", 125, -140)
+  self.feuerRahmen = feuer
+  feuer.titel:SetPoint("TOP", 0, -3)
+  feuer:SetWidth(math.max(80, (feuer.titel:GetStringWidth() or 0) + 2 * RAND))
+  -- Abklingzeit der Objekte einmal pro Sekunde (nur Texte und Farbe, das geht auch im Kampf). In
+  -- beiden Rahmen: Abseits des Feuers ist nur der Lagerfeuer-Rahmen zu sehen.
   local warten = 0
-  f:SetScript("OnUpdate", function(_, dt)
+  local function takt(_, dt)
     warten = warten + dt
     if warten < 1 then return end
     warten = 0
     K:Abklingen()
-  end)
+  end
+  f:SetScript("OnUpdate", takt)
+  feuer:SetScript("OnUpdate", takt)
 
   self.sitzen = knopf(f, nil)
-  for i, o in ipairs(O.LISTE) do self.knoepfe[i] = knopf(f, o) end
+  for i, o in ipairs(O.LISTE) do self.knoepfe[i] = knopf(o.art == "feuer" and feuer or f, o) end
 end
 
--- Welche Knöpfe jetzt? Am Feuer: Sitzen und alle Objekte, die der Char bauen kann.
--- Ohne Feuer, wenn Camp Benefits fehlen oder bald enden: das passende Lagerfeuer (aus den Taschen
--- aufstellen oder bauen). Fehlt nur Material, erscheint es grau und der Tooltip sagt, was fehlt.
+-- Welche Knöpfe jetzt auf der Leiste? Am Feuer: Sitzen und alle Objekte, die der Char bauen kann.
+-- Das Lagerfeuer steht nie hier, sondern im eigenen Rahmen (K:FeuerAuswahl).
 function K:Auswahl()
   local berufe = O.Berufe()
   local am = ns.Buffs.amFeuer
@@ -169,11 +186,19 @@ function K:Auswahl()
     for _, e in ipairs(objekte) do
       table.insert(liste, { knopf = self.knoepfe[e.nr], zustand = e.zustand, vorschlag = e.vorschlag })
     end
-  elseif ns.Buffs:BrauchtLager() then
-    local _, z, nr = O.BestesFeuer(berufe)
-    if nr then table.insert(liste, { knopf = self.knoepfe[nr], zustand = z }) end
   end
   return liste
+end
+
+-- Lagerfeuer im eigenen Rahmen, nie am Feuer. Liegt ein Bausatz in den Taschen (der beste zuerst),
+-- immer: Ein Klick stellt ihn auf, auch ohne Kochen (Bausatz per Post vom Twink). Sonst nur, wenn
+-- Camp Benefits fehlen oder bald enden: das Feuer, das der Char bauen kann, grau, wenn nur
+-- Material fehlt. nil: kein Knopf.
+function K:FeuerAuswahl()
+  if not ns.db.feuerZeigen or ns.Buffs.amFeuer then return nil end
+  local _, z, nr = O.BestesFeuer(O.Berufe())
+  if not nr then return nil end
+  if z == "vorrat" or ns.Buffs:BrauchtLager() then return { knopf = self.knoepfe[nr], zustand = z } end
 end
 
 -- Knopf auf "aufstellen" (fertiges Objekt benutzen) oder "bauen" (Rezept wirken) stellen.
@@ -283,13 +308,7 @@ function K:Aktualisieren()
     local b = e.knopf
     b:ClearAllPoints()
     b:SetPoint("TOPLEFT", RAND + (i - 1) * (GROESSE + ABSTAND), -RAND - 12)
-    if b.objekt then self:Modus(b) end
-    b.zustand = e.zustand
-    b.icon:SetDesaturated(e.zustand == "material")
-    -- Glutroter Rand: Objekt ist bereit und das Lager kann es brauchen
-    b.vorschlag = e.vorschlag and true or false
-    K.Rand(b)
-    b:Show()
+    self:Herrichten(e)
   end
   if #liste == 0 then
     self.rahmen:Hide()
@@ -297,6 +316,25 @@ function K:Aktualisieren()
     self.rahmen:SetWidth(math.max(90, 2 * RAND + #liste * GROESSE + (#liste - 1) * ABSTAND))
     self.rahmen:Show()
   end
+  local feuer = self:FeuerAuswahl()
+  if feuer then
+    feuer.knopf:ClearAllPoints()
+    feuer.knopf:SetPoint("TOP", 0, -RAND - 12)
+    self:Herrichten(feuer)
+  end
+  self.feuerRahmen:SetShown(feuer ~= nil)
+end
+
+-- Knopf für seinen Zustand herrichten und zeigen (nur außerhalb des Kampfes)
+function K:Herrichten(e)
+  local b = e.knopf
+  if b.objekt then self:Modus(b) end
+  b.zustand = e.zustand
+  b.icon:SetDesaturated(e.zustand == "material")
+  -- Glutroter Rand: Objekt ist bereit und das Lager kann es brauchen
+  b.vorschlag = e.vorschlag and true or false
+  K.Rand(b)
+  b:Show()
 end
 
 ns.beimStart(function()
@@ -341,9 +379,10 @@ end
 ns.ereignis("PLAYER_REGEN_ENABLED", function() if K.spaeter then K:Aktualisieren() end end)
 -- Kampf beginnt während des Ziehens: jetzt noch beenden und merken, gleich ist der Rahmen gesperrt
 ns.ereignis("PLAYER_REGEN_DISABLED", function()
-  if K.zieht and K.rahmen then
-    K.zieht = false
-    K.rahmen:StopMovingOrSizing()
-    ns.db.kit = ns.Leiste.Merken(K.rahmen)
+  local f = K.zieht
+  if f then
+    K.zieht = nil
+    f:StopMovingOrSizing()
+    ns.db[f.feld] = ns.Leiste.Merken(f)
   end
 end)

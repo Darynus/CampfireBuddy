@@ -17,7 +17,7 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 
 ## Ten campfire games
 
-Open them from the **Games** tab, with **Play** in the murloc show, with Shift-click on the minimap button or with `/campfire play`. Every game keeps your best score, and our own little tunes play along.
+Open them from the **Games** tab, with **Play** in the murloc show, with Shift-click on the minimap button or with `/campfire play`. Every game keeps your best score, and our own little tunes play along. A volume slider under the games turns music and sounds down or off.
 
 - **Sneaky Mrgl** (new): Agent Mrgl, in his sneaking suit with bandana and fish bomb, sneaks into a Defias camp at night to steal back the fish. Your murloc follows the mouse. Grab up to three fish and bring them to the stream: the more you carry at once, the more they are worth, golden fish count triple, and a trip without any alarm gives one and a half times the points. The guards are real Defias with vision cones. When one sees you, a "?" fills up above his head, only when it is full he shouts and chases you. Every two fish you bring home, another Defias joins. Right-click hides you under a cardboard box, and a box that stands still is just a box. With its own music for sneaking and for the alarm.
 - **Whack-a-Murloc**: real murlocs climb out of holes dug into a forest meadow. Golden ones are worth 3, bombs cost 3, and never bonk the sheep.
@@ -49,7 +49,7 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 ## Know your camp
 
 - **See what you get before you sit**: in big letters, what Camp Benefits will give you after a minute at this fire, for example +12 Attack power and +14 Strength. Green helps you, grey you already have.
-- **Camp check**: a small window at the fire tells you if sitting down is worth it for your class and spec, what you get, what you lose (sitting down replaces all your Camp Benefits) and what you keep. Camp objects disappear after a while: objects nobody has seen lately are listed apart, and if your decision depends on them, the check asks you to hover over them first.
+- **Camp check**: a small window at the fire tells you if sitting down is worth it for your class and spec, what you get, what you lose (sitting down replaces all your Camp Benefits) and what you keep. The objects at the fire sit in a row of icons, point at one for its tooltip. Camp objects disappear after a while: objects nobody has seen lately are grey and listed apart, and if your decision depends on them, the check asks you to hover over them first.
 - **Tooltips like the game's own**: every camp object shows its bonus for each level range, yours in green, what it is exclusive with and its profession.
 - **The camp itself**: which campfire you are at (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, also the ones placed by strangers nearby, and what you can still add or upgrade.
 - **Campfires on your world map**: fires you visited or lit, and your group's, with the time left to the second, who placed it and what each object gives you at your level.
@@ -74,14 +74,14 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 
 - At a campfire you get a **Sit** button and your best camp object for every bonus, from Camp Chair and Lodestone up to Rock Garden, Master Forge and Fishing Hut. What the camp still needs comes first.
 - Carry one? A click places it. Otherwise a click builds it, just like *Create* in your profession window. Cooldowns are shown on the buttons.
-- **No campfire around?** When your Camp Benefits are missing, the Camp Kit offers to light your own.
+- **No campfire around?** Carry a campfire kit and its own button places it with one click, apart from the Camp Kit. Without a kit it offers to light your own campfire when your Camp Benefits are missing.
 - The **Camp kit** tab lists every camp object of the game with its profession, its bonus, the values you have seen, your materials and a **Craft** button.
 
 ![Camp Kit](images/campfirebuddy-10-kit.png)
 
 ## Make it yours
 
-The window looks and feels like the game's own windows. Every reminder, the bar, the Camp Kit, the murloc show, the music and the sounds can be switched on or off: in the Campfire Buddy window (`/campfire`), from the minimap button and under *Esc > Options > AddOns*.
+The window looks and feels like the game's own windows. Every reminder, the bar, the Camp Kit, the campfire button, the murloc show, the music and the sounds can be switched on or off: in the Campfire Buddy window (`/campfire`), from the minimap button and under *Esc > Options > AddOns*.
 
 ![Settings](images/campfirebuddy-11-optionen.png)
 
@@ -107,7 +107,7 @@ The window looks and feels like the game's own windows. Every reminder, the bar,
 
 - **Nothing happens on its own.** Sitting down, building and placing camp objects only happen when you click, one action per click. Campfire Buddy sends no messages.
 - **Every game language**: buffs, professions and items are recognized by their IDs, never by names.
-- **Combat safe**: nothing is read in combat, the games close when a fight starts and the Camp Kit never changes during combat.
+- **Combat safe**: nothing is read in combat, the games close when a fight starts and the Camp Kit and the campfire button never change during combat.
 - Free, no ads, and the code is open on [GitHub](https://github.com/Darynus/CampfireBuddy).
 
 ## Support
