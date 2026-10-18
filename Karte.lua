@@ -135,10 +135,15 @@ function K:Zeichnen(sofort)
   end
 end
 
-ns.beimStart(function()
-  if not WorldMapFrame then return end
-  -- Läuft nur, solange die Weltkarte offen ist
+-- An die Weltkarte hängen. Läuft nur, solange sie offen ist. Lädt das Spiel die Weltkarte erst
+-- später (eigenes Add-on des Spiels, Blizzard_WorldMap), dann beim Laden.
+local function anhaengen()
+  if K.wache or not WorldMapFrame then return end
   local wache = CreateFrame("Frame", nil, WorldMapFrame)
+  K.wache = wache
   wache:SetScript("OnUpdate", function() K:Zeichnen(false) end)
   wache:SetScript("OnShow", function() K:Zeichnen(true) end)
-end)
+end
+
+ns.beimStart(anhaengen)
+ns.ereignis("ADDON_LOADED", function(name) if name == "Blizzard_WorldMap" then anhaengen() end end)

@@ -1,5 +1,13 @@
 # Campfire Buddy changelog
 
+## 1.1.2 (2026-10-18)
+
+- **Fix**: when someone places a bigger campfire at your camp (a Journeyman Campfire after a Basic one), Campfire Buddy now notices it, and also when a normal one burns there again later. The fire you point at counts, a fire placed right next to you becomes the fire of this camp, and when a fire goes out while you stand there, the next one starts fresh. Before, the camp stayed at 3 slots and every object you pointed at pushed another one out, so the camp check said "Not worth it".
+- **Fix**: when the fire gets smaller, the camp keeps only as many objects as fit ("4 of 3 known" is gone), and objects nobody has seen for 15 minutes count as gone.
+- **Fix**: campfires stay on your world map after you walk away, until their time is up. Walking away from the fire was taken for the fire going out, and the pin was gone.
+- **Fix**: the camp check header makes room for long fire names ("Journeyman Campfire, 5 of 5 known") instead of writing over "Camp check".
+- `/campfire debug` also lists your campfire pins.
+
 ## 1.1.1 (2026-10-18)
 
 - **Camp check with icons**: the objects at the fire sit in a row of slots right under the title, so you see at a glance what stands there. Point at one for its tooltip with your value. Objects nobody has seen lately are grey, and slots nobody has checked say they may simply be empty.

@@ -109,6 +109,7 @@ function LG:Neu()
   self.tipp = nil
   self.gelesen = nil
   self.kartenNr, self.feuerZeit, self.weltfeuer = nil, nil, nil
+  self.feuerAus = nil
 end
 
 -- Karte ---------------------------------------------------------------------------------------
@@ -233,7 +234,9 @@ local function wiederholen(self, ersteAnkunft)
   end
   local nachZauber = {}
   for _, o in ipairs(O.LISTE) do nachZauber[o.spell] = o end
-  if m.feuer and nachZauber[m.feuer] then self.feuer = { o = nachZauber[m.feuer], quelle = m.feuerQuelle or "cast" } end
+  if m.feuer and nachZauber[m.feuer] then
+    self.feuer = { o = nachZauber[m.feuer], quelle = m.feuerQuelle or "cast", zeit = m.feuerSeit or m.zeit }
+  end
   for _, e in ipairs(m.objekte or {}) do
     local o = type(e) == "table" and nachZauber[e.spell]
     -- Maus-Funde bei mehrdeutigen Objekten ohne Lager-Zeilen zählen nicht (siehe oben), auch
@@ -252,7 +255,8 @@ local function speichern(self)
   end
   local hier = position() or {}
   ns.db.lager = { zeit = serverZeit(), feuer = self.feuer and self.feuer.o.spell,
-    feuerQuelle = self.feuer and self.feuer.quelle, objekte = liste, x = hier.x, y = hier.y, karte = hier.karte }
+    feuerQuelle = self.feuer and self.feuer.quelle, feuerSeit = self.feuer and self.feuer.zeit,
+    objekte = liste, x = hier.x, y = hier.y, karte = hier.karte }
   karteFuellen(self)
 end
 
@@ -266,51 +270,105 @@ function LG:Ankunft()
     self:OrtMerken(false)
     -- Ab jetzt gehört der gemerkte Stand zu diesem Lager (auch wenn es leer ist)
     speichern(self)
+  elseif not self.aktiv and self.feuerAus then
+    -- Das Feuer war ausgegangen, jetzt brennt hier ein neues (Patrick, 18. Okt: nach dem
+    -- Journeyman stand wieder ein Basic da). Die Objekte bleiben, die Größe ist wieder offen, bis
+    -- die Maus auf dem Feuer war oder das Aufstellen gesehen wurde. Eigene Nadel auf der Karte.
+    self.feuer, self.kartenNr = nil, nil
+    self.feuerZeit = serverZeit()
+    self:OrtMerken(false)
+    speichern(self)
   end
+  self.feuerAus = nil
   self.schonDa = true
   self.aktiv, self.weg = true, nil
   self:Zuhoeren(true)
   local f = self.letztesFeuer
-  if f and t - f.zeit < FEUER_VORLAUF then self:FeuerSetzen(f.o, "cast", f.wer) end
+  if f and t - f.zeit < FEUER_VORLAUF then
+    self.feuerZeit = serverZeit() - math.floor(t - f.zeit)
+    self:FeuerSetzen(f.o, "cast", f.wer)
+  end
   self:Geaendert()
 end
 
--- "Campfire Nearby" ist weg. Steht der Char dabei noch genau am Feuer, ist es ausgegangen: dann
--- verschwindet es von der Karte. Sonst ist er nur weggegangen, das Feuer bleibt eingezeichnet.
+-- Läuft, reitet oder fliegt der Char gerade?
+local function inBewegung()
+  if not GetUnitSpeed then return false end
+  local ok, tempo = pcall(GetUnitSpeed, "player")
+  return ok and type(tempo) == "number" and not geheim(tempo) and tempo > 0
+end
+
+-- "Campfire Nearby" ist weg. Steht der Char dabei still, ist das Feuer ausgegangen: Es verschwindet
+-- von der Karte (wenn er genau dort steht), und kommt "Campfire Nearby" gleich wieder, ist es ein
+-- neues Feuer (LG:Ankunft). Sonst ist er nur weggegangen, das Feuer bleibt eingezeichnet, bis seine
+-- Zeit um ist. Wer weggeht, verliert "Campfire Nearby" im Laufen, oft noch keine 20 Meter vom
+-- Platz entfernt (Patrick, 18. Okt: keine Lagerfeuer auf der Karte, die Nadel war beim Weggehen
+-- jedes Mal gelöscht worden).
 function LG:Weg()
   if not self.aktiv then return end
   self.aktiv, self.weg = false, ns.jetzt()
   self:Zuhoeren(false)
+  local still = not inBewegung()
+  if still and not self.weltfeuer then self.feuerAus = true end
   local e = self.kartenNr and kartenListe()[self.kartenNr]
-  if e and e.genau and not e.welt then
+  if e and e.genau and not e.welt and still then
     local karte, x, y = kartenPos("player")
     if karte == e.karte and (x - e.x) ^ 2 + (y - e.y) ^ 2 < NAH ^ 2 then e.ende = serverZeit() end
   end
   self:Geaendert()
 end
 
-function LG:FeuerSetzen(o, quelle, wer)
-  local alt = self.feuer
-  if alt and alt.o == o then return end
-  -- Ein genauer Fund (Aufstellen) wird nicht von einer Vermutung überschrieben
-  if alt and alt.quelle == "cast" and quelle ~= "cast" then return end
-  self.feuer = { o = o, quelle = quelle, wer = wer }
-  speichern(self)
-  self:Geaendert()
-end
-
 -- Volles Feuer: Wer ein weiteres Objekt aufstellt, verdrängt das älteste (Patricks Beobachtung,
--- 16. Okt: Zelt dazu, ein anderes Objekt war weg). Älteste heißt hier: zuerst bemerkt.
-local function platzMachen(self, neu)
+-- 16. Okt: Zelt dazu, ein anderes Objekt war weg). Älteste heißt hier: zuerst bemerkt. Wird das
+-- Feuer kleiner, gehen die, die am längsten niemand gesehen hat (nachGesehen).
+local function platzMachen(self, neu, nachGesehen)
   local gesamt, belegt = self:Plaetze()
   while gesamt and belegt > gesamt do
-    local weg
+    local weg, wegZeit
     for fam, e in pairs(self.objekte) do
-      if fam ~= neu and (not weg or (e.zeit or 0) < (self.objekte[weg].zeit or 0)) then weg = fam end
+      local z = (nachGesehen and e.gesehen or e.zeit) or 0
+      if fam ~= neu and (not weg or z < wegZeit) then weg, wegZeit = fam, z end
     end
     if not weg then return end
     self.objekte[weg] = nil
     belegt = belegt - 1
+  end
+end
+
+-- Feuer dieses Lagers. Die Feuer wechseln, wenn eins ausbrennt und jemand ein neues aufstellt
+-- (Patrick, 18. Okt: Basic, dann Journeyman, dann wieder Basic). Das zuletzt gesehene gilt, über
+-- Aufstellen, Maus oder Camp Benefits. Nur ein kleineres über Maus oder Camp Benefits zählt nicht,
+-- solange das bekannte vor weniger als FEUER_DAUER aufgestellt gesehen wurde: Das brennt sicher
+-- noch, die Maus war dann auf einem anderen Feuer.
+function LG:FeuerSetzen(o, quelle, wer)
+  local alt = self.feuer
+  if alt and alt.o == o then return end
+  if alt and alt.quelle == "cast" and quelle ~= "cast" and o.plaetze < alt.o.plaetze
+    and serverZeit() - (alt.zeit or 0) < FEUER_DAUER then
+    return
+  end
+  self.feuer = { o = o, quelle = quelle, wer = wer, zeit = serverZeit() }
+  -- Kleineres Feuer: nur so viele Objekte, wie Plätze da sind (Patrick, 18. Okt: "4 of 3 known")
+  platzMachen(self, nil, true)
+  speichern(self)
+  self:Geaendert()
+end
+
+-- Objekte verschwinden nach einiger Zeit (Patrick, 18. Okt: Fish Bowl nach wenigen Minuten weg,
+-- nach dem Journeyman stand keins mehr). Hat eins so lange wie ein Feuer brennt niemand bestätigt,
+-- steht es nicht mehr.
+local OBJEKT_WEG = FEUER_DAUER
+function LG:Aufraeumen()
+  local jetzt, weg = serverZeit(), false
+  for fam, e in pairs(self.objekte) do
+    if e.genau and jetzt - (e.gesehen or e.zeit or jetzt) > OBJEKT_WEG then
+      self.objekte[fam] = nil
+      weg = true
+    end
+  end
+  if weg then
+    speichern(self)
+    self:Geaendert()
   end
 end
 
@@ -471,12 +529,27 @@ function LG:Pruefen()
   local cb = ids[ns.CAMP_BENEFITS]
   local boni, zeilen = self:Benefits()
   if not self.aktiv then return end
+  self:Aufraeumen()
   local neu = false
   -- Gerade an diesem Feuer bekommen: die Objekte darin stehen hier (einmal je Vergabe)
   if type(cb) == "table" and hierBekommen(self, cb) and self.gelesen ~= cb.ende then
     if #zeilen > 0 then
       self.gelesen = cb.ende
       if (cb.dauer or 0) > 0 then nichtMehrDa(self, boni, serverZeit() - (ns.jetzt() - (cb.ende - cb.dauer))) end
+      -- Mehr Objekte in den Camp Benefits, als das bekannte Feuer Plätze hat: Das Feuer ist größer
+      -- (mindestens die nächste Stufe, die Maus über dem Feuer sagt es genau). Vor dem Merken,
+      -- sonst fliegen beim Eintragen Objekte hinaus.
+      local anzahl = 0
+      for _ in pairs(boni) do anzahl = anzahl + 1 end
+      local gesamt = self.feuer and self.feuer.o.plaetze
+      if gesamt and anzahl > gesamt then
+        for _, o in ipairs(O.LISTE) do
+          if o.art == "feuer" and o.plaetze >= anzahl then
+            self:FeuerSetzen(o, "lager")
+            break
+          end
+        end
+      end
       for _, b in pairs(boni) do self:Merken(b.o, "lager") end
       speichern(self)
       neu = true
@@ -545,22 +618,45 @@ local function name(einheit)
   if ok and type(n) == "string" and not geheim(n) then return n end
 end
 
+-- Steht die Einheit hier am Lager? Mit Position (Gruppe) über die Karte, etwa 60 Meter. Ohne
+-- Position (Fremde) zählt die Sichtweite: Namensplakette, Ziel oder Maus. Lagerfeuer stehen
+-- mindestens 100 Meter auseinander.
+local function amLager(einheit)
+  if einheit == "player" then return true end
+  local karte, x, y = kartenPos(einheit)
+  if karte then
+    local hier, hx, hy = kartenPos("player")
+    return hier == karte and (x - hx) ^ 2 + (y - hy) ^ 2 < (NAH * 3) ^ 2
+  end
+  return fremdNah(einheit)
+end
+
 function LG:Gezaubert(einheit, spellID)
   local gruppe = gruppenEinheit(einheit)
-  if not (gruppe or (self.aktiv and fremdNah(einheit))) or geheim(spellID) or type(spellID) ~= "number" then return end
+  if not (gruppe or fremdNah(einheit)) or geheim(spellID) or type(spellID) ~= "number" then return end
   local o = platzKarte()[spellID]
   if not o then return end
   local wer = name(einheit)
   if o.art == "feuer" then
-    self.letztesFeuer = { o = o, zeit = ns.jetzt(), wer = wer }
-    -- Selbst angezündet: neues Lager genau hier
+    -- Für die Ankunft gemerkt, auch wenn man gerade nicht am Lager ist: Ist das alte Feuer aus und
+    -- stellt jemand hier ein neues auf, kommt "Campfire Nearby" kurz danach wieder (LG:Ankunft)
+    if amLager(einheit) then self.letztesFeuer = { o = o, zeit = ns.jetzt(), wer = wer } end
+    -- Selbst angezündet: neues Lager genau hier. Steht man schon an einem Lager, bleibt es dasselbe
+    -- mit neuem Feuer, die Objekte drumherum stehen weiter.
     if einheit == "player" then
-      self:Neu()
-      self.aktiv = true
-      self:Zuhoeren(true)
+      if not self.aktiv then
+        self:Neu()
+        self.aktiv = true
+        self:Zuhoeren(true)
+      end
       self.feuerZeit = serverZeit()
       self:OrtMerken(true)
       self:FeuerSetzen(o, "cast", wer)
+    elseif self.aktiv and amLager(einheit) then
+      -- Jemand stellt an diesem Lager ein Feuer auf (Patrick, 18. Okt: Journeyman nach Basic)
+      self.feuerZeit = serverZeit()
+      self:FeuerSetzen(o, "cast", wer)
+      karteFuellen(self)
     elseif gruppe then
       -- Feuer der Gruppe: eigener Eintrag an der Stelle des Mitspielers
       local karte, x, y = kartenPos(einheit)

@@ -47,12 +47,21 @@ ns.befehl("debug", L.CMD_DEBUG, function()
   for fam, b in pairs(boni) do
     DEFAULT_CHAT_FRAME:AddMessage(string.format("  -> %s: %s %s", fam, (ns.Objekte.Anzeige(b.o)), tostring(b.wert)))
   end
+  -- Weltkarte: angehängt? Einträge, Ort des Chars, Restzeit je Eintrag
+  local karte, x, y = LG.KartenPos("player")
+  local eintraege = LG:KartenEintraege()
+  ns.melde(string.format("Map: attached %s, pins %s, %d entries, you on map %s at %.3f %.3f", tostring(ns.Karte.wache ~= nil),
+    tostring(ns.db.karteZeigen), #eintraege, tostring(karte), x or 0, y or 0))
+  for _, e in ipairs(eintraege) do
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("  #%s map %s at %.3f %.3f, %s, %s left", tostring(e.nr), tostring(e.karte),
+      e.x or 0, e.y or 0, e.genau and "exact" or "rough", e.ende and ns.dauerText(e.ende - LG.Zeit()) or "always"))
+  end
   -- Minikarten-Knopf: Winkel und Ebenen von Knopf und Minikarte
   local b = ns.Minimap.knopf
   local okS, strata = pcall(Minimap.GetFrameStrata, Minimap)
   ns.melde(string.format("Minimap button: angle %d, shown %s, layer %s %s (minimap %s %s)",
     math.floor((ns.db.minimapWinkel or 0) + 0.5), tostring(b and b:IsShown()), tostring(b and b:GetFrameStrata()),
-    tostring(b and b:GetFrameLevel()), tostring(okS and strata), tostring(Minimap:GetFrameLevel())))
+    tostring(b and b:GetFrameLevel()), tostring(okS and strata), tostring((Minimap:GetFrameLevel()))))
 end)
 
 ns.befehl("help", L.CMD_HELP, function()

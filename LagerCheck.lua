@@ -21,6 +21,10 @@ local C = {}
 ns.LagerCheck = C
 
 local BREITE, RAND = 260, 10
+-- Kopf: "Camp check" links, das Feuer rechts daneben. Passt beides nicht nebeneinander, wird das
+-- Fenster breiter (bis BREITE_MAX), sonst steht das Feuer in einer eigenen Zeile darunter (Patrick,
+-- 18. Okt: "Journeyman Campfire, 5 of 5 known" lief in die Überschrift)
+local BREITE_MAX, KOPF_ABSTAND = 340, 12
 -- Plätze am Feuer als Symbole unter der Überschrift (Patrick, 18. Okt: "schnell und einfach
 -- überblickbar, wie die Gegenstände aussehen"), wie im Reiter Camp, nur kleiner
 local MAX_PLAETZE, PLATZ, PLATZ_ABSTAND = 10, 22, 24
@@ -218,6 +222,20 @@ function C:Aktualisieren()
 
   local feuer = LG.feuer and (O.Anzeige(LG.feuer.o)) or L.MAP_FIRE
   f.feuer:SetText(r.plaetze and string.format(L.CHECK_SLOTS, feuer, r.bekannt, r.plaetze) or feuer)
+  local noetig = 2 * RAND + (f.titel:GetStringWidth() or 0) + KOPF_ABSTAND + (f.feuer:GetStringWidth() or 0)
+  local breite, kopf = BREITE, 0
+  f.feuer:ClearAllPoints()
+  if noetig <= BREITE_MAX then
+    breite = math.max(BREITE, math.ceil(noetig))
+    f.feuer:SetPoint("TOPRIGHT", -RAND, -RAND - 1)
+  else
+    f.feuer:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", 0, -2)
+    kopf = (f.feuer:GetStringHeight() or 12) + 2
+  end
+  f:SetWidth(breite)
+  f.urteil:SetWidth(breite - 2 * RAND)
+  f.text:SetWidth(breite - 2 * RAND)
+  f.kopf = kopf
   -- Plätze: so viele wie das Feuer hat, bei unbekannter Größe so viele wie bekannt, mindestens 3
   local objekte = {}
   for _, e in pairs(LG.objekte) do table.insert(objekte, e) end
@@ -225,6 +243,8 @@ function C:Aktualisieren()
   local zeigen = math.min(MAX_PLAETZE, r.plaetze or math.max(3, #objekte))
   for i, p in ipairs(f.plaetze) do
     local e = objekte[i]
+    p:ClearAllPoints()
+    p:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", (i - 1) * PLATZ_ABSTAND, -6 - kopf)
     p:SetShown(i <= zeigen)
     p.eintrag = e
     if e then
@@ -241,7 +261,7 @@ function C:Aktualisieren()
     end
   end
   f.urteil:ClearAllPoints()
-  f.urteil:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", 0, -(6 + (zeigen > 0 and PLATZ + 6 or 0)))
+  f.urteil:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", 0, -(6 + kopf + (zeigen > 0 and PLATZ + 6 or 0)))
   f.platzHoehe = zeigen > 0 and PLATZ + 6 or 0
   local u = URTEIL[r.urteil]
   f.urteil:SetText(L[u[1]])
@@ -284,7 +304,7 @@ function C:Aktualisieren()
   end
   f.text:SetText(table.concat(zeilen, "\n"))
 
-  local hoehe = RAND + 14 + 6 + (f.platzHoehe or 0) + (f.urteil:GetStringHeight() or 18) + 6 + (f.text:GetStringHeight() or 60) + RAND
+  local hoehe = RAND + 14 + 6 + (f.kopf or 0) + (f.platzHoehe or 0) + (f.urteil:GetStringHeight() or 18) + 6 + (f.text:GetStringHeight() or 60) + RAND
   f:SetHeight(math.max(80, hoehe))
   f:Show()
 end
