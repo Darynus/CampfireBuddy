@@ -1,4 +1,4 @@
--- Spiele am Lagerfeuer: ein Fenster mit Menü und neun kleinen Spielen für die Minute am Feuer
+-- Spiele am Lagerfeuer: ein Fenster mit Menü und zehn kleinen Spielen für die Minute am Feuer
 -- (und länger, wer mag). Reine Oberfläche: keine Spielaktion, keine Nachrichten, nur auf Klick.
 -- Bei Kampfbeginn schließt sich alles. Rekorde je Spiel in CampfireBuddyDB.rekorde.
 --
@@ -44,7 +44,7 @@ local function letzteStufe(spiel)
   return spiel.stufen and spiel.stufen[1]
 end
 
--- Halbdunkle Fläche über dem Spiel mit Text und bis zu zwei Knöpfen (Spielende, Rundenende,
+-- Halbdunkle Fläche über dem Spiel mit Text und bis zu drei Knöpfen (Spielende, Rundenende,
 -- Stufenwahl)
 local function tafelBauen(bereich)
   local t = CreateFrame("Frame", nil, bereich)
@@ -65,27 +65,34 @@ local function tafelBauen(bereich)
     b:SetHeight(24)
     b.info = S.schrift(b, "GameFontHighlightSmall", F.leise)
     b.info:SetPoint("TOP", b, "BOTTOM", 0, -3)
+    b.info:SetWordWrap(true)
     t.knoepfe[i] = b
   end
   t:Hide()
   return t
 end
 
--- Tafel zeigen: knoepfe = { { text, info, aktion }, ... } nebeneinander in der Mitte
+-- Tafel zeigen: knoepfe = { { text, info, aktion }, ... } nebeneinander in der Mitte. Die Knöpfe
+-- werden so schmal, dass alle samt Zwischenraum in die Spielfläche passen (drei Stufen ragten mit
+-- je 120 Punkten über den Rand, Patricks Screenshot 18. Okt).
+local TAFEL_KNOPF, TAFEL_LUECKE, TAFEL_RAND = 120, 8, 8
 function SP:Tafel(titel, text, knoepfe)
   local t = self.tafel
   t.titel:SetText(titel or "")
   t.text:SetText(text or "")
   local n = #knoepfe
+  local breite = math.min(TAFEL_KNOPF, math.floor((SP.BREITE - 2 * TAFEL_RAND - (n - 1) * TAFEL_LUECKE) / math.max(1, n)))
   for i, b in ipairs(t.knoepfe) do
     local k = knoepfe[i]
     b:SetShown(k ~= nil)
     if k then
+      b:SetWidth(breite)
       b.text:SetText(k.text)
+      b.info:SetWidth(breite + TAFEL_LUECKE - 2)
       b.info:SetText(k.info or "")
       b.aktion = k.aktion
       b:ClearAllPoints()
-      b:SetPoint("TOP", t, "TOP", (i - (n + 1) / 2) * 132, -112)
+      b:SetPoint("TOP", t, "TOP", (i - (n + 1) / 2) * (breite + TAFEL_LUECKE + (n < 3 and 12 or 0)), -112)
     end
   end
   t:Show()
@@ -173,30 +180,36 @@ function SP:Bauen()
   self.rufEbene = ruf
   self.tafel = tafelBauen(bereich)
 
-  -- Menü: drei Spalten mit Symbol, darunter Name und Rekord
+  -- Menü: drei Spalten mit Symbol, darunter Name und Rekord. Ab zehn Spielen vier Reihen, dann
+  -- werden die Knöpfe flacher und das Symbol kleiner, damit alles in der Spielfläche bleibt.
   local menue = CreateFrame("Frame", nil, bereich)
   self.menue = menue
   menue:SetAllPoints()
   menue.knoepfe = {}
   local SP_MENUE = 3
-  local kb, kh = (SP.BREITE - 4 * (SP_MENUE + 1)) / SP_MENUE, 58
+  local reihen = math.ceil(#SP.liste / SP_MENUE)
+  local abstand = reihen > 3 and 3 or 4
+  local kb = (SP.BREITE - 4 * (SP_MENUE + 1)) / SP_MENUE
+  local kh = math.min(58, math.floor((SP.HOEHE - 4 - (reihen - 1) * abstand - 2) / reihen))
+  local symbol = kh >= 54 and 26 or 18
+  local nameY = kh >= 54 and -33 or -(symbol + 5)
   for i, spiel in ipairs(SP.liste) do
     local b = S.kasten(menue, "Button", F.flaeche, F.rand)
     b:SetSize(kb, kh)
     local spalte, reihe = (i - 1) % SP_MENUE, math.floor((i - 1) / SP_MENUE)
-    b:SetPoint("TOPLEFT", 4 + spalte * (kb + 4), -4 - reihe * (kh + 4))
+    b:SetPoint("TOPLEFT", 4 + spalte * (kb + 4), -4 - reihe * (kh + abstand))
     b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(26, 26)
-    b.icon:SetPoint("TOP", 0, -5)
+    b.icon:SetSize(symbol, symbol)
+    b.icon:SetPoint("TOP", 0, kh >= 54 and -5 or -3)
     b.icon:SetTexture(spiel.icon)
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     b.name = S.schrift(b, "GameFontHighlightSmall", F.text)
-    b.name:SetPoint("TOP", 0, -33)
+    b.name:SetPoint("TOP", 0, nameY)
     b.name:SetWidth(kb - 4)
     b.name:SetWordWrap(false)
     b.name:SetText(spiel.name)
     b.best = S.schrift(b, "GameFontHighlightSmall", F.leise)
-    b.best:SetPoint("TOP", 0, -45)
+    b.best:SetPoint("TOP", 0, nameY - 11)
     b.best:SetWidth(kb - 4)
     b.best:SetWordWrap(false)
     b:HookScript("OnEnter", function(self) S.randFarbe(self, F.akzent) end)

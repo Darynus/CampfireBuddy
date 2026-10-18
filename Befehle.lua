@@ -47,6 +47,12 @@ ns.befehl("debug", L.CMD_DEBUG, function()
   for fam, b in pairs(boni) do
     DEFAULT_CHAT_FRAME:AddMessage(string.format("  -> %s: %s %s", fam, (ns.Objekte.Anzeige(b.o)), tostring(b.wert)))
   end
+  -- Minikarten-Knopf: Winkel und Ebenen von Knopf und Minikarte
+  local b = ns.Minimap.knopf
+  local okS, strata = pcall(Minimap.GetFrameStrata, Minimap)
+  ns.melde(string.format("Minimap button: angle %d, shown %s, layer %s %s (minimap %s %s)",
+    math.floor((ns.db.minimapWinkel or 0) + 0.5), tostring(b and b:IsShown()), tostring(b and b:GetFrameStrata()),
+    tostring(b and b:GetFrameLevel()), tostring(okS and strata), tostring(Minimap:GetFrameLevel())))
 end)
 
 ns.befehl("help", L.CMD_HELP, function()

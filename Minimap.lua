@@ -1,15 +1,19 @@
 -- Zugänge zum Hauptfenster: Minikarten-Knopf, Add-on-Menü an der Minikarte und
--- Esc > Options > AddOns. Ohne Fremdbibliothek. Vorlage: Pigeon Post, Duo und der Kern.
+-- Esc > Options > AddOns. Ohne Fremdbibliothek.
+-- Aufbau genau wie bei Hop & Seek und Pigeon Post, deren Knöpfe gehen (Patrick, 18. Okt): Ebene
+-- und Stufe nur beim Bauen setzen und danach nie wieder anfassen. Die Versuche vom 17. und 18. Okt
+-- (Ebene nach dem Login neu setzen und festnageln, Ausweichen, Selbstprüfung unter der Maus) sind
+-- wieder draußen. Der Knopf blieb damit bei Patrick nicht klickbar.
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 
 local M = {}
 ns.Minimap = M
 
-local function e() return ns.db end
+local STANDARD_WINKEL = 290
 
 local function position(knopf)
-  local winkel = math.rad(e().minimapWinkel or 200)
+  local winkel = math.rad(ns.db.minimapWinkel or STANDARD_WINKEL)
   local radius = (Minimap:GetWidth() or 140) / 2 + 5
   knopf:ClearAllPoints()
   knopf:SetPoint("CENTER", Minimap, "CENTER", math.cos(winkel) * radius, math.sin(winkel) * radius)
@@ -21,7 +25,7 @@ function M:Bauen()
   self.knopf = b
   b:SetSize(31, 31)
   b:SetFrameStrata("MEDIUM")
-  b:SetFrameLevel(math.max(8, (Minimap:GetFrameLevel() or 1) + 8))
+  b:SetFrameLevel(8)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:RegisterForDrag("LeftButton")
 
@@ -29,13 +33,14 @@ function M:Bauen()
   grund:SetSize(24, 24)
   grund:SetPoint("CENTER")
   grund:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+  -- Ein festes Bild: der Murloc mit dem Lagerfeuer-Abzeichen, wie Logo und Fenster
   local icon = b:CreateTexture(nil, "ARTWORK")
   icon:SetSize(20, 20)
   icon:SetPoint("CENTER")
+  S.markeSetzen(icon)
   if icon.SetMask then pcall(icon.SetMask, icon, "Interface\\CharacterFrame\\TempPortraitAlphaMask") end
   self.icon = icon
   self.abzeichen = S.abzeichen(b, icon, 13)
-  self:Symbol()
   local ring = b:CreateTexture(nil, "OVERLAY")
   ring:SetSize(53, 53)
   ring:SetPoint("TOPLEFT")
@@ -59,7 +64,7 @@ function M:Bauen()
       local mx, my = Minimap:GetCenter()
       local cx, cy = GetCursorPosition()
       local skala = Minimap:GetEffectiveScale()
-      e().minimapWinkel = math.deg((math.atan2 or math.atan)(cy / skala - my, cx / skala - mx))
+      ns.db.minimapWinkel = math.deg((math.atan2 or math.atan)(cy / skala - my, cx / skala - mx))
       position(self)
     end)
   end)
@@ -67,74 +72,19 @@ function M:Bauen()
   S.tooltip(b, L.ADDON_NAME, L.MINIMAP_TOOLTIP)
   position(b)
   self:Sichtbarkeit()
-  -- Ändert sich die Größe der Minikarte (Bearbeitungsmodus, Skalierung), mitwandern
-  if Minimap.HookScript then pcall(Minimap.HookScript, Minimap, "OnSizeChanged", function() position(b) end) end
 end
 
--- Nach dem Einloggen (andere Add-ons haben ihre Knöpfe dann gesetzt): neu ausrichten, ganz nach
--- vorn holen und ausweichen, falls ein anderer Knopf auf demselben Platz sitzt. Der Knopf war
--- bei Patrick zweimal verschwunden (16. Okt), vermutlich verdeckt.
-function M:Pruefen()
-  local b = self.knopf
-  if not (b and Minimap and e().minimapZeigen) then return end
-  position(b)
-  b:SetFrameStrata("MEDIUM")
-  b:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
-  local x, y = b:GetCenter()
-  if not x then return end
-  for _, k in ipairs({ Minimap:GetChildren() }) do
-    if k ~= b and k.IsShown and k:IsShown() and k.GetCenter and k.GetWidth and (k:GetWidth() or 0) < 60 then
-      local kx, ky = k:GetCenter()
-      if kx and (kx - x) ^ 2 + (ky - y) ^ 2 < 18 ^ 2 then return self:Zurueck() end
-    end
-  end
-end
-
--- Bild im Knopf nach der Einstellung: Lagerfeuer (Standard), Murloc mit Abzeichen oder das
--- Symbol von Camp Benefits aus dem Spiel
-function M:Symbol()
-  if not self.icon then return end
-  local wahl = e().minimapSymbol or "feuer"
-  if wahl == "murloc" then
-    S.markeSetzen(self.icon)
-  elseif wahl == "lager" then
-    self.icon:SetTexture(S.LAGER)
-    self.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  else
-    self.icon:SetTexture(S.SYMBOL)
-    self.icon:SetTexCoord(0, 1, 0, 1)
-  end
-  self.abzeichen:SetShown(wahl == "murloc")
-end
-
--- Zurück an einen freien Platz: Winkel, an dem kein anderer Knopf der Minikarte sitzt
+-- /campfire minimap: Knopf wieder zeigen, an seinen Standardplatz
 function M:Zurueck()
+  ns.db.minimapZeigen = true
+  ns.db.minimapWinkel = STANDARD_WINKEL
   if not self.knopf then return self:Bauen() end
-  local belegt = {}
-  for _, k in ipairs({ Minimap:GetChildren() }) do
-    if k ~= self.knopf and k.IsShown and k:IsShown() and k.GetCenter then
-      local x, y = k:GetCenter()
-      local mx, my = Minimap:GetCenter()
-      if x and mx then table.insert(belegt, math.deg((math.atan2 or math.atan)(y - my, x - mx))) end
-    end
-  end
-  local bester, abstand = 150, -1
-  for w = 0, 345, 15 do
-    local naechster = 360
-    for _, b in ipairs(belegt) do
-      local d = math.abs((w - b + 540) % 360 - 180)
-      if d < naechster then naechster = d end
-    end
-    if naechster > abstand then bester, abstand = w, naechster end
-  end
-  e().minimapWinkel = bester
   position(self.knopf)
-  self.knopf:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
   self:Sichtbarkeit()
 end
 
 function M:Sichtbarkeit()
-  if self.knopf then self.knopf:SetShown(e().minimapZeigen and true or false) end
+  if self.knopf then self.knopf:SetShown(ns.db.minimapZeigen and true or false) end
 end
 
 -- Eintrag unter Esc > Options > AddOns, mit Knopf zum Hauptfenster
@@ -165,10 +115,8 @@ function CampfireBuddy_OnAddonCompartmentClick()
 end
 
 ns.beimStart(function()
+  -- Reste früherer Versuche aus den Einstellungen räumen
+  ns.db.minimapSymbol, ns.db.minimapPlatz, ns.db.minimapVerdeckt = nil, nil, nil
   M:Bauen()
   M:OptionenEintragen()
-end)
-
-ns.ereignis("PLAYER_ENTERING_WORLD", function()
-  if C_Timer and C_Timer.After then C_Timer.After(3, function() M:Pruefen() end) else M:Pruefen() end
 end)

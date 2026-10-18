@@ -25,10 +25,18 @@ local function name(a)
   return string.format(L.SPELL_ID, a.id)
 end
 
+-- Eigener Alarm, wenn das Essen mit Erfahrungsbonus ausläuft (Patricks Wunsch, 18. Okt: "so was wie
+-- aus Metal Gear Solid"): selbst erzeugt mit tools/musik/effekte.js, Schlag, "!" und Magenknurren.
+-- Hängt am Schalter für den Erinnerungston.
+E.HUNGER = "Interface\\AddOns\\CampfireBuddy\\Media\\Toene\\Hunger.ogg"
+
 function E:Abgelaufen(a, istEssen)
   if schonGemeldet(ns.db.abgelaufen, a) then return end
   ns.db.abgelaufen[a.id] = a.ende or 0
   ns.melde(string.format(istEssen and L.MSG_FOOD_RAN_OUT or L.MSG_RAN_OUT, name(a)))
+  if istEssen and ns.db.ton and ns.Buffs.MitXp(a) ~= false and PlaySoundFile then
+    pcall(PlaySoundFile, E.HUNGER, "SFX")
+  end
 end
 
 -- Jede Sekunde aufgerufen. Läuft auch im Kampf, aus der zuletzt gelesenen Ablaufzeit.

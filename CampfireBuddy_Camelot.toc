@@ -2,7 +2,7 @@
 ## Title: |cffff8c38Campfire|r Buddy
 ## Notes: Keeps your Camp Benefits and food buff in view, reminds you before they run out, builds and places camp objects with one click, and brings a murloc show with campfire games. /campfire
 ## Author: Darynus
-## Version: 1.0.0
+## Version: 1.1.0
 ## X-Curse-Project-ID: 1745434
 ## IconTexture: Interface\Icons\INV_10XP_WorldEvent_Special_MurlocFigure
 ## AddonCompartmentFunc: CampfireBuddy_OnAddonCompartmentClick
@@ -15,6 +15,7 @@ Atlas.lua
 Wiese.lua
 Roesten.lua
 Lagerkarte.lua
+Schleichkarte.lua
 Rennbahn.lua
 Unterwasser.lua
 Funkenglas.lua
@@ -27,6 +28,7 @@ Empfehlung.lua
 Karte.lua
 Leiste.lua
 Kit.lua
+LagerCheck.lua
 Show.lua
 ShowMenue.lua
 Musik.lua
@@ -40,6 +42,7 @@ SpielStapel.lua
 SpielMemory.lua
 SpielVerteidigung.lua
 SpielFlap.lua
+SpielSchleichen.lua
 Fenster.lua
 Minimap.lua
 Befehle.lua

@@ -27,10 +27,13 @@ local WEG = S.NACHT_WEG or { 0.84, 0.84 }
 local FEUER_X = 1 + (S.NACHT_FEUER or 0.915) * SZENE_B
 local SPUR_LINKS, SPUR_RECHTS = 22, FEUER_X - 30
 local FIGUR = 84
--- Ein PlayerModel lässt mit der Standardkamera unter den Füßen etwas Luft: bei 84 Pixeln
--- Rahmenhöhe etwa 8 Pixel (so stand der Murloc in der Beta auf dem Boden). Um so viel sitzt der
--- Rahmen tiefer als die Weg-Linie, dann stehen die Füße darauf.
-local FUSS_LUFT = 8
+-- Ein PlayerModel lässt mit der Standardkamera unter den Füßen etwas Luft, je nach Modell
+-- verschieden. Um so viel sitzt der Rahmen tiefer als die Weg-Linie, dann stehen die Füße darauf.
+-- Bei 84 Pixeln Rahmenhöhe: der große Murloc (31) etwa 8 Pixel, die Baby-Murlocs etwa 20 (Patricks
+-- Screenshot 18. Okt: Murky schwebte mit 8 Pixeln etwa 12 Pixel über seinem Schatten).
+local FUSS_LUFT = { [15369] = 20, [15984] = 20, [31] = 8 }
+local FUSS_LUFT_SONST = 14
+local function fussLuft(id) return FUSS_LUFT[id] or FUSS_LUFT_SONST end
 -- Bildblatt des Lagerfeuers: 52 Pixel, die Mitte des Steinrings liegt 10 Pixel über dem unteren Rand
 local FEUER_GROESSE, FEUER_LUFT = 52, 10
 local MURLOC_DISPLAYS = { 15369, 15984 }
@@ -240,6 +243,7 @@ local function geladen(m)
 end
 
 function SH:DisplaySetzen(id)
+  self.display = id
   for _, m in ipairs({ self.modell, self.freunde[1], self.freunde[2] }) do
     if m then
       pcall(m.SetDisplayInfo, m, id)
@@ -311,7 +315,7 @@ function SH:Zeichnen()
   self.px, self.fuss = px, fuss
   if self.dreiD and self.modell then
     self.modell:ClearAllPoints()
-    self.modell:SetPoint("BOTTOM", f, "BOTTOMLEFT", px, fuss - FUSS_LUFT)
+    self.modell:SetPoint("BOTTOM", f, "BOTTOMLEFT", px, fuss - fussLuft(self.display))
     pcall(self.modell.SetFacing, self.modell, self.blick)
   else
     self.kopf:ClearAllPoints()
@@ -617,7 +621,7 @@ function SH:Freunde(an)
       m:SetShown(an)
       if an then
         m:ClearAllPoints()
-        m:SetPoint("BOTTOM", f, "BOTTOMLEFT", x, wegHoehe(x) - FUSS_LUFT)
+        m:SetPoint("BOTTOM", f, "BOTTOMLEFT", x, wegHoehe(x) - fussLuft(self.display))
         pcall(m.SetFacing, m, VORNE)
         self:Anim("tanzen", m)
       end

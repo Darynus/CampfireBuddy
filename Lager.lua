@@ -30,6 +30,7 @@ local FEUER_VORLAUF = 20      -- Feuer aufgestellt, "Campfire Nearby" kommt kurz
 local function geheim(v) return issecretvalue ~= nil and issecretvalue(v) end
 local function imKampf() return InCombatLockdown and InCombatLockdown() end
 local function serverZeit() return (GetServerTime and GetServerTime()) or time() end
+LG.Zeit = serverZeit
 
 -- Stufe eines Objekts in seiner Familie (1, 2, 3). Beide Faction Banner sind Stufe 1.
 local RANG = {}
@@ -235,7 +236,7 @@ local function wiederholen(self, ersteAnkunft)
     local o = type(e) == "table" and nachZauber[e.spell]
     -- Maus-Funde bei mehrdeutigen Objekten zählen nicht (siehe oben), auch nicht aus älteren Ständen
     if o and not (e.quelle == "maus" and o.mehrdeutig) then
-      self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true, zeit = e.zeit }
+      self.objekte[o.familie] = { o = o, quelle = e.quelle, wer = e.wer, genau = true, zeit = e.zeit, gesehen = e.gesehen or e.zeit }
     end
   end
 end
@@ -244,7 +245,7 @@ local function speichern(self)
   if not ns.db then return end
   local liste = {}
   for _, e in pairs(self.objekte) do
-    if e.genau then table.insert(liste, { spell = e.o.spell, quelle = e.quelle, wer = e.wer, zeit = e.zeit }) end
+    if e.genau then table.insert(liste, { spell = e.o.spell, quelle = e.quelle, wer = e.wer, zeit = e.zeit, gesehen = e.gesehen }) end
   end
   local hier = position() or {}
   ns.db.lager = { zeit = serverZeit(), feuer = self.feuer and self.feuer.o.spell,
@@ -310,18 +311,29 @@ local function platzMachen(self, neu)
   end
 end
 
--- Objekt am Feuer merken. Höhere Stufe gewinnt (sie ersetzt die kleinere am Feuer).
+-- Objekt am Feuer merken. Höhere Stufe gewinnt (sie ersetzt die kleinere am Feuer). gesehen: wann
+-- es zuletzt bestätigt wurde (Maus, Aufstellen, Kampflog, Camp Benefits). Objekte verschwinden nach
+-- einiger Zeit wieder (Patrick, 18. Okt: Fish Bowl nach wenigen Minuten weg), der Lager-Check
+-- zählt deshalb nur kürzlich gesehene als sicher da.
 function LG:Merken(o, quelle, wer)
   if o.art == "feuer" then return self:FeuerSetzen(o, quelle, wer) end
   local alt = self.objekte[o.familie]
+  local jetzt = serverZeit()
   if alt and alt.genau then
     if LG.Rang(alt.o) > LG.Rang(o) then return end
     if alt.o == o then
-      if wer and not alt.wer then alt.wer = wer speichern(self) end
+      local lange = jetzt - (alt.gesehen or alt.zeit or 0) > 30
+      alt.gesehen = jetzt
+      local neuerName = wer and not alt.wer
+      if neuerName then alt.wer = wer end
+      if lange or neuerName then
+        speichern(self)
+        self:Geaendert()
+      end
       return
     end
   end
-  self.objekte[o.familie] = { o = o, quelle = quelle, wer = wer, genau = true, zeit = serverZeit() }
+  self.objekte[o.familie] = { o = o, quelle = quelle, wer = wer, genau = true, zeit = jetzt, gesehen = jetzt }
   if not alt then platzMachen(self, o.familie) end
   speichern(self)
   self:Geaendert()
@@ -601,12 +613,28 @@ function LG:Objekt(text)
   if o and not o.mehrdeutig then self:Merken(o, "maus") end
 end
 
+-- Maus über einem Objekt (auch fern vom eigenen Feuer): Werte je Levelbereich aus dem Tooltip des
+-- Spiels lernen ("+21 Stamina (24-35)"), für die eigenen Tooltips (Objekte.lua). Nur außerhalb
+-- des Kampfes. Ein Amboss im Dorf hat keine solchen Zeilen, deshalb gilt das auch für mehrdeutige.
+function LG:WerteLernen(zeilen)
+  if imKampf() or not ns.db then return end
+  local o = LG.Erkennen(type(zeilen[1]) == "table" and zeilen[1].leftText)
+  if not o or o.art == "feuer" then return end
+  local stufen = O.StufenAus(zeilen)
+  if not stufen then return end
+  ns.db.objektWerte = ns.db.objektWerte or {}
+  ns.db.objektWerte[o.spell] = stufen
+end
+
 ns.beimStart(function()
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType
     and Enum.TooltipDataType.Object then
     pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Object, function(_, daten)
       local zeile = type(daten) == "table" and type(daten.lines) == "table" and daten.lines[1]
-      if type(zeile) == "table" then LG:Objekt(zeile.leftText) end
+      if type(zeile) == "table" then
+        LG:Objekt(zeile.leftText)
+        LG:WerteLernen(daten.lines)
+      end
     end)
   end
 end)

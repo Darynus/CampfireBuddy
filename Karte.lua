@@ -37,31 +37,36 @@ local function aufKarte(e, karte)
   return x, y
 end
 
+-- Aufbau wie bei den Lagerfeuern, die das Spiel selbst auf der Karte zeigt (Patricks Screenshot,
+-- 17. Okt): Name, "13 Min 53 Sec remaining", "Placed by: Name". Die Sekunden zählen mit, solange
+-- die Maus auf der Nadel steht (K:Zeichnen ruft den Tooltip jede Sekunde neu auf).
 local function tooltip(nadel)
   local e = nadel.eintrag
   if not e then return end
   local feuer = objekt(e.feuer)
   GameTooltip:SetOwner(nadel, "ANCHOR_RIGHT")
   GameTooltip:SetText(feuer and (ns.Objekte.Anzeige(feuer)) or L.MAP_FIRE, 1, 0.82, 0)
-  if e.wer then GameTooltip:AddLine(string.format(L.MAP_LIT_BY, e.wer), F.text[1], F.text[2], F.text[3]) end
+  if e.welt then
+    GameTooltip:AddLine(L.MAP_ALWAYS, F.erfolg[1], F.erfolg[2], F.erfolg[3])
+  elseif e.ende then
+    local rest = math.max(0, e.ende - serverZeit())
+    GameTooltip:AddLine(string.format(L.MAP_REMAINING, math.floor(rest / 60), math.floor(rest % 60)), 1, 1, 1)
+  end
+  if e.wer then GameTooltip:AddLine(string.format(L.MAP_PLACED_BY, e.wer), 1, 1, 1) end
   local anzahl = #(e.objekte or {})
   if feuer and feuer.plaetze then
     GameTooltip:AddLine(string.format(L.MAP_SLOTS, anzahl, feuer.plaetze), F.leise[1], F.leise[2], F.leise[3])
   elseif anzahl > 0 then
     GameTooltip:AddLine(string.format(L.MAP_OBJECTS, anzahl), F.leise[1], F.leise[2], F.leise[3])
   end
+  -- Je Objekt rechts sein Bonus für dein Level (grün), wie im Tooltip des Objekts
   for _, spell in ipairs(e.objekte or {}) do
     local o = objekt(spell)
     if o then
       local name, icon = ns.Objekte.Anzeige(o)
-      GameTooltip:AddLine("|T" .. tostring(icon) .. ":14:14|t " .. name, F.text[1], F.text[2], F.text[3])
+      GameTooltip:AddDoubleLine("|T" .. tostring(icon) .. ":14:14|t " .. name, ns.Objekte.WertFuerMich(o) or "",
+        F.text[1], F.text[2], F.text[3], 0.1, 1, 0.1)
     end
-  end
-  if e.welt then
-    GameTooltip:AddLine(L.MAP_ALWAYS, F.erfolg[1], F.erfolg[2], F.erfolg[3])
-  elseif e.ende then
-    local rest = math.max(1, math.floor((e.ende - serverZeit()) / 60 + 0.5))
-    GameTooltip:AddLine(string.format(L.MAP_LEFT, rest), F.akzent[1], F.akzent[2], F.akzent[3])
   end
   if not e.genau then GameTooltip:AddLine(L.MAP_ROUGH, F.leise[1], F.leise[2], F.leise[3], true) end
   GameTooltip:AddLine(L.MAP_REMOVE, F.leise[1], F.leise[2], F.leise[3])

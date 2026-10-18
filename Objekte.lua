@@ -459,3 +459,143 @@ function O.KonfliktText(o)
   local id = fam.konflikt[1]
   return C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id) or nil
 end
+
+-- Werte je Levelbereich -----------------------------------------------------------------------
+-- Ein aufgestelltes Objekt nennt im Tooltip des Spiels seinen Bonus je Levelbereich, etwa
+-- "+21 Stamina (24-35)" (Patricks Screenshots, 17. Okt). Lager.lua lernt diese Zeilen, sobald die
+-- Maus über einem Objekt steht, und legt sie in ns.db.objektWerte[Zauber-ID] ab.
+-- Bis dahin gelten die Werte aus den Screenshots: { von, bis, Wert }, ohne Bereich nur der Wert.
+O.START = {
+  [1230117] = { { 1, 11, 3 }, { 12, 23, 8 }, { 24, 35, 21 }, { 36, 47, 34 }, { 48, 59, 45 }, { 60, 60, 56 } },
+  [1263425] = { { nil, nil, 14 } },
+  [1229504] = { { nil, nil, 14 } },
+}
+
+local function ohneFarbe(t)
+  t = string.gsub(t, "|c%x%x%x%x%x%x%x%x", "")
+  t = string.gsub(t, "|r", "")
+  return (string.gsub(string.gsub(t, "^%s+", ""), "%s+$", ""))
+end
+
+-- Eine Zeile aus dem Tooltip des Spiels: { text = "+21 Stamina", von = 24, bis = 35 } oder nil.
+-- Erkannt wird nur die Form (Zahl mit Vorzeichen, Bereich in Klammern), nie ein Name.
+function O.StufeLesen(t)
+  if type(t) ~= "string" or (issecretvalue and issecretvalue(t)) then return nil end
+  t = ohneFarbe(t)
+  local wert, rest, von, bis = string.match(t, "^([%+%-]%d+%%?)%s+(.-)%s*%((%d+)%s*%-%s*(%d+)%)$")
+  if wert then return { text = wert .. " " .. rest, von = tonumber(von), bis = tonumber(bis) } end
+  wert, rest, von = string.match(t, "^([%+%-]%d+%%?)%s+(.-)%s*%((%d+)%)$")
+  if wert then return { text = wert .. " " .. rest, von = tonumber(von), bis = tonumber(von) } end
+  wert, rest = string.match(t, "^([%+%-]%d+%%?)%s+(%S.*)$")
+  if wert then return { text = wert .. " " .. rest } end
+end
+
+-- Zeilen eines Tooltips (ab der zweiten) auswerten. Rückgabe: Liste der Stufen oder nil.
+function O.StufenAus(zeilen)
+  local t = {}
+  for i = 2, #zeilen do
+    local z = zeilen[i]
+    local s = O.StufeLesen(type(z) == "table" and z.leftText or z)
+    if s then table.insert(t, s) end
+  end
+  return #t > 0 and t or nil
+end
+
+-- Steht es auch im Tooltip des Gegenstands (Taschen)? Einmal je Sitzung und Objekt nachsehen,
+-- nur außerhalb des Kampfes.
+local imGegenstandGesucht = {}
+local function ausGegenstand(o)
+  if imGegenstandGesucht[o] or not (C_TooltipInfo and C_TooltipInfo.GetItemByID) then return nil end
+  if InCombatLockdown and InCombatLockdown() then return nil end
+  imGegenstandGesucht[o] = true
+  local ok, daten = pcall(C_TooltipInfo.GetItemByID, o.item)
+  if not (ok and type(daten) == "table" and type(daten.lines) == "table") then return nil end
+  local stufen = O.StufenAus(daten.lines)
+  if stufen and ns.db then
+    ns.db.objektWerte = ns.db.objektWerte or {}
+    ns.db.objektWerte[o.spell] = stufen
+  end
+  return stufen
+end
+
+-- Stufen eines Objekts: gelernt, aus dem Gegenstand oder aus den Startwerten
+function O.Stufen(o)
+  local gelernt = ns.db and ns.db.objektWerte and ns.db.objektWerte[o.spell]
+  if gelernt then return gelernt end
+  local g = ausGegenstand(o)
+  if g then return g end
+  local start = O.START[o.spell]
+  if not start then return nil end
+  local bonus = O.FAMILIE[o.familie] and O.FAMILIE[o.familie].bonus or ""
+  local t = {}
+  for _, s in ipairs(start) do
+    table.insert(t, { text = string.format(L.TT_VALUE, s[3], bonus), von = s[1], bis = s[2] })
+  end
+  return t
+end
+
+-- Bonus für das Level des Chars als Text ("+21 Stamina"), sonst der gelernte Wert, sonst nil
+function O.WertFuerMich(o)
+  local level = UnitLevel and UnitLevel("player") or 0
+  for _, s in ipairs(o.art ~= "feuer" and O.Stufen(o) or {}) do
+    if not s.von or (level >= s.von and level <= (s.bis or s.von)) then return s.text end
+  end
+  local wert = ns.Lager and ns.Lager.WertText(o)
+  local bonus = O.FAMILIE[o.familie] and O.FAMILIE[o.familie].bonus
+  return wert and bonus and string.format(L.TT_VALUE_TEXT, wert, bonus) or nil
+end
+
+-- Name des Berufs, wie das Spiel ihn nennt, sonst aus Locale.lua
+function O.BerufName(linie)
+  if C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillDisplayName then
+    local ok, n = pcall(C_TradeSkillUI.GetTradeSkillDisplayName, linie)
+    if ok and type(n) == "string" and n ~= "" then return n end
+  end
+  return O.BERUF_NAME[linie] or "?"
+end
+
+-- Tooltip eines Lager-Objekts im Stil des Spiels: Name, Bonus je Levelbereich (der eigene grün),
+-- "Exclusive with" und der Beruf. Danach hängt der Aufrufer eigene Zeilen an.
+local GRUEN, GRAU, WEISS = { 0.1, 1, 0.1 }, { 0.5, 0.5, 0.5 }, { 0.85, 0.85, 0.85 }
+function O.TooltipFuellen(tt, o)
+  tt:SetText((O.Anzeige(o)), 1, 0.82, 0)
+  local stufen = o.art ~= "feuer" and O.Stufen(o)
+  local level = UnitLevel and UnitLevel("player") or 0
+  if stufen then
+    tt:AddLine(" ")
+    for _, s in ipairs(stufen) do
+      local text = s.text
+      if s.von and s.bis and s.von ~= s.bis then text = string.format(L.TT_RANGE, text, s.von, s.bis)
+      elseif s.von then text = string.format(L.TT_LEVEL, text, s.von) end
+      local hier = s.von and level >= s.von and level <= (s.bis or s.von)
+      local c = hier and GRUEN or WEISS
+      tt:AddLine(text, c[1], c[2], c[3])
+    end
+  else
+    local wert = ns.Lager and ns.Lager.WertText(o)
+    local bonus = O.FAMILIE[o.familie] and O.FAMILIE[o.familie].bonus
+    tt:AddLine(" ")
+    tt:AddLine(wert and bonus and string.format(L.TT_VALUE_TEXT, wert, bonus) or o.info, WEISS[1], WEISS[2], WEISS[3], true)
+  end
+  local gegen = O.KonfliktText(o)
+  if gegen then tt:AddLine(string.format(L.TT_EXCLUSIVE, gegen), 1, 0.5, 0.25) end
+  tt:AddLine(O.BerufName(o.beruf), GRAU[1], GRAU[2], GRAU[3])
+end
+
+-- So einen Tooltip an einen Rahmen hängen. objektVon(self) liefert das Objekt, extra(self, tt, o)
+-- hängt eigene Zeilen an (Material, Zustand). Ohne Objekt zeigt er leerText, falls gesetzt.
+function O.TooltipAn(rahmen, objektVon, extra, leerText)
+  rahmen:HookScript("OnEnter", function(self)
+    local o = objektVon(self)
+    if not o and not leerText then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    if o then
+      O.TooltipFuellen(GameTooltip, o)
+      if extra then extra(self, GameTooltip, o) end
+    else
+      GameTooltip:SetText(leerText, 1, 1, 1)
+    end
+    GameTooltip:Show()
+  end)
+  rahmen:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end

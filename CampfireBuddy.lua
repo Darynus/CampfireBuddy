@@ -34,14 +34,16 @@ local STANDARD = {
   gesperrt = false,
   leiste = {},           -- Position der Leiste
   minimapZeigen = true,
-  minimapWinkel = 150,
-  minimapSymbol = "feuer", -- Bild im Minikarten-Knopf: "feuer", "murloc" oder "lager"
+  minimapWinkel = 290,
   karteZeigen = true,    -- Lagerfeuer auf der Weltkarte (Karte.lua)
   karte = {},            -- [Nummer] = Lager mit Ort, siehe Lager.lua
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
   essenIds = {},         -- [Zauber-ID] = { name, icon }, vom Spieler als Essens-Buff markiert
   essenIcons = {},       -- [Datei-ID des Symbols] = Name, ebenso
+  essenXp = {},          -- [Zauber-ID] = gibt dieses Essen den Erfahrungsbonus? (Buffs.lua)
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
+  checkZeigen = true,    -- Lager-Check am linken Rand (LagerCheck.lua)
+  check = {},            -- Position des Lager-Checks
   showAn = true,         -- Murloc-Show während der Sitz-Minute
   murlocTon = true,      -- Murloc-Schrei in Show und Spielen
   spielMusik = true,     -- eigene Arcade-Musik in den Spielen (Musik.lua)

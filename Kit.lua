@@ -31,9 +31,9 @@ local function tooltip(b)
     local urteil = ns.Empfehlung and ns.Empfehlung:Urteil()
     if urteil then GameTooltip:AddLine(urteil, F.akzent[1], F.akzent[2], F.akzent[3], true) end
   else
-    local name = O.Anzeige(o)
-    GameTooltip:SetText(name, 1, 1, 1)
-    GameTooltip:AddLine(o.info, F.leise[1], F.leise[2], F.leise[3], true)
+    -- Kopf wie im Spiel: Werte je Levelbereich, Exclusive with, Beruf. Darunter unsere Hinweise.
+    O.TooltipFuellen(GameTooltip, o)
+    GameTooltip:AddLine(" ")
     local basis = O.BASIS[o.familie]
     if basis and basis ~= o and o.art ~= "feuer" then
       GameTooltip:AddLine(string.format(L.KIT_REPLACES, (O.Anzeige(basis))), F.leise[1], F.leise[2], F.leise[3], true)

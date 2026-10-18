@@ -1,5 +1,18 @@
 # Campfire Buddy changelog
 
+## 1.1.0 (2026-10-18)
+
+- **New game: Sneaky Mrgl**, the tenth campfire game. Agent Mrgl, in his sneaking suit with bandana, silenced pistol and fish bomb, sneaks into a Defias camp at night to steal back the fish. Your murloc follows the mouse. Grab up to three fish and bring them to the stream: the more you carry at once, the more they are worth, golden fish count triple and a trip without any alarm gives one and a half times the points. The guards are real Defias with vision cones. When one sees you, a "?" fills up above his head and he turns towards you, only when it is full he shouts and chases you until you lose him. Every two fish you bring home, another Defias joins and they all get faster. Hide under the cardboard box with a right-click, a box that stands still is just a box. Own music for sneaking and for the alarm, own sound effects.
+- **Hungry!** When your food buff with the experience bonus runs out, a little alarm plays: a dramatic hit, a bright "!" and a growling stomach. Made for Campfire Buddy, switch it off with the reminder sound.
+- **Food buff**: every Well Fed is recognized without a click, even with its own icon. Only a Well Fed with the experience bonus counts, snacks like Bobbing Apple show "Well Fed, but no XP bonus".
+- **Camp check**: a small window at the left edge while you are at a campfire. It tells you if sitting down is worth it for your class and spec, what you get, what you lose (sitting down replaces all your Camp Benefits) and what you keep, with the values for your level. Camp objects disappear after a while: objects nobody has seen in the last 90 seconds are listed as "Not seen lately", and if your decision depends on them, the check asks you to hover over them first. Hidden in combat, can be moved and switched off.
+- **Tooltips like the game's own**: every camp object shows its bonus for each level range, yours in green, what it is exclusive with and its profession. Campfire Buddy learns the values when you point at a camp object in the world.
+- **World map**: campfire pins show the time left to the second ("13 Min 53 Sec remaining"), who placed the fire and what each object gives you at your level.
+- **Fix**: the murloc in the show stands on the path again instead of floating above its shadow.
+- **Fix**: the minimap button is built exactly like the ones of our other add-ons again and stays clickable.
+- **Fix**: the campfire games play their music even when the game music is switched off, then over the sound effects channel.
+- The minimap button has one fixed icon again: the murloc with the campfire badge.
+
 ## 1.0.0 (2026-10-16)
 
 The first full release. The music, the minigames and all the art in Campfire Buddy are made for it by Darynus. Have fun at the campfire!

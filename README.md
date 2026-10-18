@@ -3,7 +3,7 @@
 <h1 align="center">Campfire Buddy</h1>
 
 <p align="center"><b>Never lose your Camp Benefits or your food buff again.</b><br>
-A small bar with the time left, reminders before they run out, a Camp Kit for your camp objects, and nine little campfire games to pass the time while you sit at the fire.</p>
+A small bar with the time left, reminders before they run out, a Camp Kit for your camp objects, and ten little campfire games to pass the time while you sit at the fire.</p>
 
 <p align="center">
 <a href="https://www.curseforge.com/wow/addons/campfire-buddy">CurseForge</a> ·
@@ -15,10 +15,11 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 
 ![How it works](images/campfirebuddy-1-ablauf.png)
 
-## Nine campfire games
+## Ten campfire games
 
 Open them from the **Games** tab, with **Play** in the murloc show, with Shift-click on the minimap button or with `/campfire play`. Every game keeps your best score, and our own little tunes play along.
 
+- **Sneaky Mrgl** (new): Agent Mrgl, in his sneaking suit with bandana and fish bomb, sneaks into a Defias camp at night to steal back the fish. Your murloc follows the mouse. Grab up to three fish and bring them to the stream: the more you carry at once, the more they are worth, golden fish count triple, and a trip without any alarm gives one and a half times the points. The guards are real Defias with vision cones. When one sees you, a "?" fills up above his head, only when it is full he shouts and chases you. Every two fish you bring home, another Defias joins. Right-click hides you under a cardboard box, and a box that stands still is just a box. With its own music for sneaking and for the alarm.
 - **Whack-a-Murloc**: real murlocs climb out of holes dug into a forest meadow. Golden ones are worth 3, bombs cost 3, and never bonk the sheep.
 - **Camp Defense**: murlocs march out of the lake along a winding path to your tent. Build fire, frost, storm (chain lightning), mortar and spear towers on nine stone pads, upgrade them, call waves early for bonus embers and survive ten waves up to King Mrgl. Fast runners, armored brutes and healing oracles make sure no single tower wins it alone.
 - **Campfire Fishing**: hold to cast, wait for the real bite after the nibbles, then reel with feeling so the line does not snap. Nine fish from the Reed Minnow to the Golden Gleamfin, a fish book with your biggest catch, and the odd soggy boot.
@@ -29,7 +30,9 @@ Open them from the **Games** tab, with **Play** in the murloc show, with Shift-c
 - **Log Stack**: drop the swinging log as straight as you can, the sawn off piece tumbles away.
 - **Camp Memory**: find the pairs, Easy or Hard, round after round.
 
-![Nine games, one click away](images/campfirebuddy-2-spiele.png)
+![Ten games, one click away](images/campfirebuddy-2-spiele.png)
+
+![Sneaky Mrgl](images/campfirebuddy-12-schleichen.png)
 
 ![Whack-a-Murloc](images/campfirebuddy-3-whack.png)
 
@@ -46,9 +49,10 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 ## Know your camp
 
 - **See what you get before you sit**: in big letters, what Camp Benefits will give you after a minute at this fire, for example +12 Attack power and +14 Strength. Green helps you, grey you already have.
-- **Is it worth sitting down?** Campfire Buddy knows your class and spec and tells you how many bonuses at this fire help you. Bonuses that do little for you are dimmed.
+- **Camp check**: a small window at the fire tells you if sitting down is worth it for your class and spec, what you get, what you lose (sitting down replaces all your Camp Benefits) and what you keep. Camp objects disappear after a while: objects nobody has seen lately are listed apart, and if your decision depends on them, the check asks you to hover over them first.
+- **Tooltips like the game's own**: every camp object shows its bonus for each level range, yours in green, what it is exclusive with and its profession.
 - **The camp itself**: which campfire you are at (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, also the ones placed by strangers nearby, and what you can still add or upgrade.
-- **Campfires on your world map**: fires you visited or lit, and your group's, with objects and time left.
+- **Campfires on your world map**: fires you visited or lit, and your group's, with the time left to the second, who placed it and what each object gives you at your level.
 
 ![Know your camp](images/campfirebuddy-7-camp.png)
 
@@ -57,6 +61,8 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 ## Your buffs at a glance
 
 - **Buff bar**: Camp Benefits and your food buff with the time left. Add any other buff you want to keep an eye on.
+- **Food buff with the XP bonus**: every Well Fed is recognized on its own. Only a Well Fed with the experience bonus counts, snacks without it show "Well Fed, but no XP bonus".
+- **Hungry!** A little alarm of our own plays when your food with the experience bonus runs out.
 - **Reminders** 2, 5 or 10 minutes before a buff runs out, plus one chat line at login or when you join a group without them.
 - **Camp spot!** The bar glows when you walk up to a campfire without Camp Benefits.
 - **All set!** A short message once Camp Benefits and your food buff are both active.

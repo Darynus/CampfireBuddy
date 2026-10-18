@@ -142,9 +142,16 @@ local function bauenStatus()
       self.essen:SetTextColor(rgba(F.erfolg))
       self.essenHilfe:SetText("")
     else
-      self.essen:SetText(L.NO_FOOD_BUFF)
+      local ohne = ns.Buffs:EssenOhneXp()
+      if ohne then
+        local r = ns.Buffs.Rest(ohne)
+        self.essen:SetText(string.format(L.FOOD_NO_XP_NAME, ohne.name or L.FOOD_BUFF) .. "   |cff8e9db8"
+          .. (r and ns.dauerText(r) or L.NO_TIMER) .. "|r")
+      else
+        self.essen:SetText(L.NO_FOOD_BUFF)
+      end
       self.essen:SetTextColor(rgba(F.hinweis))
-      self.essenHilfe:SetText(L.FOOD_STATUS_HELP)
+      self.essenHilfe:SetText(ohne and L.FOOD_NO_XP_HELP or L.FOOD_STATUS_HELP)
     end
     local kandidat, markiert = ns.Buffs:EssenKandidat(), ns.Buffs:EssenMarkiert()
     self.essenKnopf:SetShown(kandidat ~= nil or markiert ~= nil)
@@ -286,21 +293,19 @@ local function bauenKit()
     z.mats:SetWidth(B - 140)
     z.mats:SetJustifyH("LEFT")
     z.mats:SetWordWrap(false)
-    S.tooltip(z, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) end, function(self)
-      local e = self.eintrag
-      if not e then return nil end
-      local zeilen = { e.o.info }
-      local basis = O.BASIS[e.o.familie]
-      if basis and basis ~= e.o and e.o.art ~= "feuer" then
-        table.insert(zeilen, string.format(L.KIT_REPLACES, (O.Anzeige(basis))))
+    -- Tooltip wie im Spiel (Werte je Levelbereich, Exclusive with, Beruf), darunter unsere Hinweise
+    O.TooltipAn(z, function(self) return self.eintrag and self.eintrag.o end, function(_, tt, o)
+      local leise = F.leise
+      tt:AddLine(" ")
+      local basis = O.BASIS[o.familie]
+      if basis and basis ~= o and o.art ~= "feuer" then
+        tt:AddLine(string.format(L.KIT_REPLACES, (O.Anzeige(basis))), leise[1], leise[2], leise[3], true)
       end
-      local gegen = O.KonfliktText(e.o)
-      if gegen then table.insert(zeilen, string.format(L.KIT_NO_STACK, gegen)) end
-      local konflikt = O.Konflikt(e.o)
-      if konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, konflikt)) end
-      table.insert(zeilen, O.MaterialText(e.o))
-      table.insert(zeilen, e.o.lernen or L.LEARN_TRAINER_PROF)
-      return table.concat(zeilen, "\n")
+      local konflikt = O.Konflikt(o)
+      if konflikt then tt:AddLine(string.format(L.KIT_CONFLICT, konflikt), F.hinweis[1], F.hinweis[2], F.hinweis[3], true) end
+      local da = O.MaterialDa(o)
+      tt:AddLine(O.MaterialText(o), da and 0.4 or 0.94, da and 0.84 or 0.38, da and 0.56 or 0.35, true)
+      tt:AddLine(o.lernen or L.LEARN_TRAINER_PROF, leise[1], leise[2], leise[3], true)
     end)
     -- Craften direkt aus der Liste: ein Klick, ein Stück (erster Klick öffnet sonst den Beruf)
     z.bauen = S.textKnopf(z, L.KIT_BTN_CRAFT, 70, function()
@@ -445,13 +450,15 @@ local function bauenLager()
     p.icon:SetPoint("BOTTOMRIGHT", -3, 3)
     p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     p:EnableMouse(true)
-    S.tooltip(p, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) or L.CAMP_SLOT_FREE end, function(self)
+    O.TooltipAn(p, function(self) return self.eintrag and self.eintrag.o end, function(self, tt)
       local e = self.eintrag
-      if not e then return nil end
       local quelle = QUELLE[e.quelle] or ""
       if (e.quelle == "cast" or e.quelle == "log") and e.wer then quelle = string.format(L.CAMP_SRC_CAST_BY, e.wer) end
-      return quelle
-    end)
+      if quelle ~= "" then
+        tt:AddLine(" ")
+        tt:AddLine(quelle, F.leise[1], F.leise[2], F.leise[3], true)
+      end
+    end, L.CAMP_SLOT_FREE)
     f.plaetze[i] = p
   end
   f.mehr = S.schrift(f, "GameFontHighlightLarge", F.leise)
@@ -491,9 +498,13 @@ local function bauenLager()
     b.name:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
     b.zustand = S.schrift(b, "GameFontHighlightSmall", F.leise)
     b.zustand:SetPoint("RIGHT", -4, 0)
-    S.tooltip(b, function(self) return self.eintrag and self.eintrag.bonus end, function(self)
+    -- Tooltip wie im Spiel für das Objekt, das den Bonus hier bringt (am Feuer, sonst deins, sonst
+    -- die erste Stufe), darunter woher der Bonus kommt und was du tun kannst
+    O.TooltipAn(b, function(self)
       local e = self.eintrag
-      if not e then return nil end
+      return e and (e.von or (e.da and e.da.o) or e.best or e.basis)
+    end, function(self, tt)
+      local e = self.eintrag
       local namen = {}
       for _, o in ipairs(O.LISTE) do
         if o.familie == e.fam and O.Passt(o) then table.insert(namen, (O.Anzeige(o))) end
@@ -509,7 +520,8 @@ local function bauenLager()
       else
         table.insert(zeilen, L.BONUS_TIP_NONE)
       end
-      return table.concat(zeilen, "\n")
+      tt:AddLine(" ")
+      for _, z in ipairs(zeilen) do tt:AddLine(z, F.leise[1], F.leise[2], F.leise[3], true) end
     end)
     f.boni[i] = b
   end
@@ -536,13 +548,12 @@ local function bauenLager()
     end)
     z.bauen:SetHeight(20)
     z.bauen:SetPoint("BOTTOMRIGHT", -8, 3)
-    S.tooltip(z, function(self) return self.eintrag and O.Anzeige(self.eintrag.o) end, function(self)
-      local e = self.eintrag
-      if not e then return nil end
-      local zeilen = { e.o.info, O.MaterialText(e.o) }
-      local konflikt = O.Konflikt(e.o)
-      if konflikt then table.insert(zeilen, string.format(L.KIT_CONFLICT, konflikt)) end
-      return table.concat(zeilen, "\n")
+    O.TooltipAn(z, function(self) return self.eintrag and self.eintrag.o end, function(_, tt, o)
+      tt:AddLine(" ")
+      local da = O.MaterialDa(o)
+      tt:AddLine(O.MaterialText(o), da and 0.4 or 0.94, da and 0.84 or 0.38, da and 0.56 or 0.35, true)
+      local konflikt = O.Konflikt(o)
+      if konflikt then tt:AddLine(string.format(L.KIT_CONFLICT, konflikt), F.hinweis[1], F.hinweis[2], F.hinweis[3], true) end
     end)
     return z
   end)
@@ -723,7 +734,8 @@ local function bauenEinstellungen()
     { feld = "gesperrt", text = L.OPT_LOCK, hilfe = L.OPT_LOCK_HELP, y = -257 },
     { feld = "minimapZeigen", text = L.OPT_MINIMAP, hilfe = L.OPT_MINIMAP_HELP, y = -278,
       danach = function() ns.Minimap:Sichtbarkeit() end },
-    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -299 },
+    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -299, breite = B / 2 - 4 },
+    { feld = "checkZeigen", text = L.OPT_CHECK, hilfe = L.OPT_CHECK_HELP, y = -299, x = B / 2, breite = B / 2 },
     { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -320 },
     { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -341 },
     { feld = "karteZeigen", text = L.OPT_MAP, hilfe = L.OPT_MAP_HELP, y = -362 },
@@ -732,36 +744,19 @@ local function bauenEinstellungen()
   S.ueberschrift(f, L.DISPLAY):SetPoint("TOPLEFT", 0, -199)
   f.schalter = {}
   for i, s in ipairs(schalter) do
-    local h = S.haken(f, B, s.text, s.hilfe, function(_, an)
+    local h = S.haken(f, s.breite or B, s.text, s.hilfe, function(_, an)
       ns.db[s.feld] = an
       if s.danach then s.danach() end
       W:Aktualisieren()
       ns.aktualisieren()
     end)
     h.feld = s.feld
-    h:SetPoint("TOPLEFT", 0, s.y)
-    -- Neben dem Minikarten-Knopf die Wahl seines Bildes, deshalb ist diese Zeile schmaler
-    if s.feld == "minimapZeigen" then h:SetWidth(230) end
+    h:SetPoint("TOPLEFT", s.x or 0, s.y)
     f.schalter[i] = h
-  end
-
-  -- Bild im Minikarten-Knopf
-  f.symbol = S.segmente(f, 210, {
-    { wert = "feuer", text = L.ICON_FIRE, hilfe = L.ICON_FIRE_HELP },
-    { wert = "murloc", text = L.ICON_MURLOC, hilfe = L.ICON_MURLOC_HELP },
-    { wert = "lager", text = L.ICON_CAMP, hilfe = L.ICON_CAMP_HELP },
-  }, function(wert)
-    ns.db.minimapSymbol = wert
-    ns.Minimap:Symbol()
-    W:Aktualisieren()
-  end)
-  for _, h in ipairs(f.schalter) do
-    if h.feld == "minimapZeigen" then f.symbol:SetPoint("LEFT", h, "RIGHT", 10, 0) end
   end
 
   function f:Aktualisieren()
     self.warnen:Setzen(ns.db.warnenMinuten)
-    self.symbol:Setzen(ns.db.minimapSymbol or "feuer")
     for _, h in ipairs(self.schalter) do h:Setzen(ns.db[h.feld]) end
   end
 end

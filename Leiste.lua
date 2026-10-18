@@ -238,6 +238,10 @@ function B:Aktualisieren()
 
   local essenZeigen = ns.db.essenErinnern and ns.Buffs.gelesen and not ns.Buffs:Essen()
   self.essen:SetShown(essenZeigen and true or false)
+  -- Well Fed ohne Erfahrungsbonus (Bobbing Apple): sagen, dass gekochtes Essen mehr bringt
+  if essenZeigen then
+    setzen(self.essen.titel, ns.Buffs:EssenOhneXp() and L.FOOD_NO_XP or L.NO_FOOD_BUFF)
+  end
   S.puls(self.essen.puls, essenZeigen and true or false)
   local zeilen = n + (leerZeigen and 1 or 0)
   if essenZeigen then
