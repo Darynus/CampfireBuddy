@@ -38,9 +38,6 @@ local STANDARD = {
   karteZeigen = true,    -- Lagerfeuer auf der Weltkarte (Karte.lua)
   karte = {},            -- [Nummer] = Lager mit Ort, siehe Lager.lua
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
-  essenIds = {},         -- [Zauber-ID] = { name, icon }, vom Spieler als Essens-Buff markiert
-  essenIcons = {},       -- [Datei-ID des Symbols] = Name, ebenso
-  essenXp = {},          -- [Zauber-ID] = gibt dieses Essen den Erfahrungsbonus? (Buffs.lua)
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
   feuerZeigen = true,    -- eigener Knopf fürs Lagerfeuer abseits des Feuers (Kit.lua)
   checkZeigen = true,    -- Lager-Check am linken Rand (LagerCheck.lua)
@@ -183,6 +180,8 @@ ns.ereignis("ADDON_LOADED", function(name)
   -- 0.1.0 kannte nur Whack-a-Murloc
   if (ns.db.spielBest or 0) > (ns.db.rekorde.whack or 0) then ns.db.rekorde.whack = ns.db.spielBest end
   ns.db.spielBest = nil
+  -- Bis 1.1.2: von Hand markiertes Essen und gemerkte "ohne Bonus". Jetzt stehen die IDs in Buffs.lua.
+  ns.db.essenIds, ns.db.essenIcons, ns.db.essenXp = nil, nil, nil
 end)
 
 ns.ereignis("PLAYER_LOGIN", function()

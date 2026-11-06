@@ -21,7 +21,10 @@ end
 
 function M:Bauen()
   if self.knopf or not Minimap then return end
-  local b = CreateFrame("Button", nil, Minimap)
+  -- Fester Name mit dem Vorsatz von LibDBIcon, den fast alle Add-ons für ihren Knopf nutzen: Sammler
+  -- wie MinimapButtonButton suchen unter den Kindern der Minikarte nach benannten Knöpfen und lassen
+  -- namenlose liegen (Patrick, 6. Nov). Die Bibliothek selbst brauchen wir nicht.
+  local b = CreateFrame("Button", "LibDBIcon10_CampfireBuddy", Minimap)
   self.knopf = b
   b:SetSize(31, 31)
   b:SetFrameStrata("MEDIUM")
@@ -84,7 +87,9 @@ function M:Zurueck()
 end
 
 function M:Sichtbarkeit()
-  if self.knopf then self.knopf:SetShown(ns.db.minimapZeigen and true or false) end
+  if not self.knopf then return end
+  -- Show und Hide statt SetShown: Sammler hängen sich an diese beiden
+  if ns.db.minimapZeigen then self.knopf:Show() else self.knopf:Hide() end
 end
 
 -- Eintrag unter Esc > Options > AddOns, mit Knopf zum Hauptfenster

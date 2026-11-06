@@ -61,7 +61,7 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 ## Your buffs at a glance
 
 - **Buff bar**: Camp Benefits and your food buff with the time left. Add any other buff you want to keep an eye on.
-- **Food buff with the XP bonus**: every Well Fed is recognized on its own. Only a Well Fed with the experience bonus counts, snacks without it show "Well Fed, but no XP bonus".
+- **Food buff with the XP bonus**: Campfire Buddy knows every Well Fed by its spell ID. Only a Well Fed with the experience bonus counts, snacks without it show "Well Fed, but no XP bonus".
 - **Hungry!** A little alarm of our own plays when your food with the experience bonus runs out.
 - **Reminders** 2, 5 or 10 minutes before a buff runs out, plus one chat line at login or when you join a group without them.
 - **Camp spot!** The bar glows when you walk up to a campfire without Camp Benefits.
@@ -88,7 +88,7 @@ The window looks and feels like the game's own windows. Every reminder, the bar,
 ## Install
 
 - **CurseForge app**: search for *Campfire Buddy* under World of Warcraft, Forever.
-- **By hand**: download the zip from CurseForge and put the `CampfireBuddy` folder into `World of Warcraft\_classic_beta_\Interface\AddOns`. Restart the game.
+- **By hand**: download the zip from CurseForge and put the `CampfireBuddy` folder into `World of Warcraft\_forever_\Interface\AddOns`. Restart the game.
 
 ## Commands
 

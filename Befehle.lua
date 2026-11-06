@@ -56,10 +56,16 @@ ns.befehl("debug", L.CMD_DEBUG, function()
     DEFAULT_CHAT_FRAME:AddMessage(string.format("  #%s map %s at %.3f %.3f, %s, %s left", tostring(e.nr), tostring(e.karte),
       e.x or 0, e.y or 0, e.genau and "exact" or "rough", e.ende and ns.dauerText(e.ende - LG.Zeit()) or "always"))
   end
-  -- Minikarten-Knopf: Winkel und Ebenen von Knopf und Minikarte
+  -- Essen: welcher Buff zählt, mit Zauber-ID
+  local essen, ohneXp = ns.Buffs:Essen(), ns.Buffs:EssenOhneXp()
+  local mahl = essen or ohneXp
+  ns.melde(string.format("Food: %s, spell %s, XP bonus %s", mahl and tostring(mahl.name) or "none",
+    tostring(mahl and mahl.id), tostring(essen ~= nil)))
+  -- Minikarten-Knopf: Name, Winkel und Ebenen von Knopf und Minikarte
   local b = ns.Minimap.knopf
   local okS, strata = pcall(Minimap.GetFrameStrata, Minimap)
-  ns.melde(string.format("Minimap button: angle %d, shown %s, layer %s %s (minimap %s %s)",
+  ns.melde(string.format("Minimap button: %s, on minimap %s, angle %d, shown %s, layer %s %s (minimap %s %s)",
+    tostring(b and b:GetName()), tostring(b and b:GetParent() == Minimap),
     math.floor((ns.db.minimapWinkel or 0) + 0.5), tostring(b and b:IsShown()), tostring(b and b:GetFrameStrata()),
     tostring(b and b:GetFrameLevel()), tostring(okS and strata), tostring((Minimap:GetFrameLevel()))))
 end)

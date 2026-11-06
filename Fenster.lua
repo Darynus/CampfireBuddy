@@ -74,19 +74,8 @@ local function bauenStatus()
   S.ueberschrift(f, L.FOOD_TITLE):SetPoint("TOPLEFT", 0, -168)
   f.essen = S.schrift(f, "GameFontHighlight", F.text)
   f.essen:SetPoint("TOPLEFT", 0, -184)
-  f.essenHilfe = S.absatz(f, B - 190, F.leise)
+  f.essenHilfe = S.absatz(f, B, F.leise)
   f.essenHilfe:SetPoint("TOPLEFT", 0, -202)
-  -- Nur wenn nötig: eben gegessen, aber nicht erkannt. Oder falsch markiert.
-  f.essenKnopf = S.textKnopf(f, "", 180, function()
-    local a = ns.Buffs:EssenKandidat() or ns.Buffs:EssenMarkiert()
-    if not a then return end
-    local an = ns.Buffs:EssenUmschalten(a)
-    ns.melde(string.format(an and L.MSG_FOOD_MARKED or L.MSG_FOOD_UNMARKED, a.name or a.id))
-    W:Aktualisieren()
-    ns.aktualisieren()
-  end)
-  f.essenKnopf:SetPoint("TOPRIGHT", 0, -182)
-  S.tooltip(f.essenKnopf, L.FOOD_TITLE, L.FOOD_MARK_HELP)
 
   S.ueberschrift(f, L.OTHER_TRACKED):SetPoint("TOPLEFT", 0, -250)
   f.andere = S.absatz(f, B, F.text)
@@ -153,13 +142,6 @@ local function bauenStatus()
       self.essen:SetTextColor(rgba(F.hinweis))
       self.essenHilfe:SetText(ohne and L.FOOD_NO_XP_HELP or L.FOOD_STATUS_HELP)
     end
-    local kandidat, markiert = ns.Buffs:EssenKandidat(), ns.Buffs:EssenMarkiert()
-    self.essenKnopf:SetShown(kandidat ~= nil or markiert ~= nil)
-    if kandidat then
-      self.essenKnopf.text:SetText(string.format(L.BTN_IS_FOOD, kandidat.name or kandidat.id))
-    elseif markiert then
-      self.essenKnopf.text:SetText(L.BTN_FORGET_FOOD)
-    end
     local zeilen = {}
     for _, a in ipairs(ns.Buffs:Liste()) do
       if a.id ~= ns.CAMP_BENEFITS and not (essen and a.id == essen.id) then
@@ -173,7 +155,7 @@ end
 
 -- Seite: Buffs -------------------------------------------------------------------------
 
--- verfolgt: Zeile in der Liste der verfolgten Buffs (dort kein Knopf Food, außer zum Zurücknehmen)
+-- verfolgt: Zeile in der Liste der verfolgten Buffs
 local function buffZeile(liste, breite, verfolgt)
   local z = S.zeile(liste)
   z.inVerfolgt = verfolgt
@@ -215,7 +197,7 @@ local function buffFuellen(z, e)
   z.fest:SetText(fest and L.TRACKED_DEFAULT or "")
   z.knopf:SetShown(not fest)
   z.knopf.text:SetText(ns.db.eigeneBuffs[e.id] and L.BTN_UNTRACK or L.BTN_TRACK)
-  -- Als Essen erkannt: Hinweis statt Knopf (markieren geht auf der Status-Seite)
+  -- Als Essen erkannt: kleiner Hinweis
   local essen = ns.Buffs.IstEssen(e) and not fest
   z.essenFest:SetShown(essen)
   z.essenFest:SetText(L.FOOD_DETECTED)

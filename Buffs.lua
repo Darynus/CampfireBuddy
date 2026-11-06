@@ -1,5 +1,5 @@
 -- Buffs lesen: die verfolgten Zauber-IDs (Camp Benefits und selbst gewählte), den Essens-Buff
--- (+5 % Erfahrung durch Kills laut Beta-Guides) und ob man an einem Lagerfeuer steht.
+-- (+5 % Erfahrung durch Kills) und ob man an einem Lagerfeuer steht.
 -- Außerhalb des Kampfes, höchstens alle 0,2 Sekunden.
 -- Im Kampf liefert das Spiel teils geheime Werte. Dann bleibt der letzte Stand, und die
 -- Restzeit läuft aus der gemerkten Ablaufzeit weiter.
@@ -8,11 +8,38 @@ local ADDON, ns = ...
 local B = { aktiv = {}, amFeuer = false, gelesen = false, essen = nil }
 ns.Buffs = B
 
--- Jedes Essen hat seinen eigenen "Well Fed"-Buff mit eigener Zauber-ID. Erkannt wird er am
--- Symbol (Spell_Misc_Food, Datei-ID 136000) oder am Namen "Well Fed", den das Spiel zu bekannten
--- Well-Fed-Zaubern nennt (B.WellFedName). Passt beides nicht, markiert der Spieler den Buff einmal.
+-- Jedes Essen hat seinen eigenen "Well Fed"-Buff mit eigener Zauber-ID, und alle Essen heißen
+-- gleich. Erkannt wird der Buff zuerst an der Zauber-ID (Listen unten). Für Essen, das noch in
+-- keiner Liste steht, zählen das Symbol (Spell_Misc_Food, Datei-ID 136000) und der Name "Well Fed",
+-- den das Spiel zu bekannten Well-Fed-Zaubern nennt (B.WellFedName).
 ns.ESSEN_ICON = 136000
 ns.ESSEN_TEXTUR = "Interface\\Icons\\Spell_Misc_Food"
+
+-- Well Fed mit Erfahrungsbonus. Die verborgene Aura "Well Fed XP Boost" (1243969) wirkt laut Wowhead
+-- Forever auf genau diese 13 Zauber (Reiter "Modifies", geprüft am 6. Nov 2026).
+local MIT_XP = {
+  [1248406] = true, -- Ausdauer
+  [1248420] = true, -- Beweglichkeit
+  [1248421] = true, -- Intelligenz
+  [1248422] = true, -- Stärke
+  [1248688] = true, -- Tempo in Westfall
+  [1249519] = true, -- Angriffskraft
+  [1249520] = true, -- Zauberschaden
+  [1249521] = true, -- Angeln
+  [1249523] = true, -- kritische Treffer
+  [1249907] = true, -- Kräuterkunde
+  [1249926] = true, -- Willenskraft
+  [1249927] = true, -- Heilung
+  [1319310] = true, -- Rüstung
+}
+
+-- Well Fed ohne Erfahrungsbonus, zum Beispiel Bobbing Apple (Wowhead Forever, 6. Nov 2026)
+local OHNE_XP = {
+  [19705] = true, [19706] = true, [19708] = true, [19709] = true, [19710] = true, [19711] = true,
+  [24799] = true, [24870] = true, [25694] = true, [25941] = true,
+  [1225778] = true, [1225779] = true, [1225780] = true, [1225782] = true,
+  [1283082] = true, [1294007] = true, [1302064] = true,
+}
 
 local function geheim(v) return issecretvalue ~= nil and issecretvalue(v) end
 
@@ -38,10 +65,7 @@ local function kopie(a)
     local p = a.points[1]
     if type(p) == "number" and not geheim(p) then punkte = p end
   end
-  -- Wer den Buff gegeben hat ("player" beim Essen), nur wenn lesbar
-  local quelle = a.sourceUnit
-  if geheim(quelle) or type(quelle) ~= "string" then quelle = nil end
-  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0, instanz = instanz, punkte = punkte, quelle = quelle }
+  return { id = id, name = name, icon = icon, dauer = dauer or 0, ende = ende or 0, instanz = instanz, punkte = punkte }
 end
 
 -- Alle hilfreichen Buffs des Spielers: { {id, name, icon, dauer, ende} }.
@@ -70,9 +94,8 @@ end
 
 -- Name der Essens-Buffs ("Well Fed"), wie das Spiel ihn selbst zu bekannten Well-Fed-Zaubern nennt.
 -- So passt er in jeder Spielsprache. Jedes Essen hat zwar eigene ID und oft ein eigenes Symbol
--- (Patricks Käse, 18. Okt: Symbol Käse, kein Essens-Symbol, musste von Hand markiert werden), der
--- Name ist aber immer gleich. Genommen wird der Name, den mindestens zwei der IDs liefern, damit
--- eine falsche ID nicht stört.
+-- (Patricks Käse, 18. Okt: Symbol Käse, kein Essens-Symbol), der Name ist aber immer gleich.
+-- Genommen wird der Name, den mindestens zwei der IDs liefern, damit eine falsche ID nicht stört.
 local WELL_FED = { 19705, 19706, 19708, 19709, 19710, 19711, 24799 }
 local wellFedName, wellFedZeit = nil, -100
 function B.WellFedName()
@@ -91,41 +114,22 @@ function B.WellFedName()
   return wellFedName
 end
 
--- Ist dieser Buff ein Essens-Buff? Über gelernte IDs und Symbole, das Well-Fed-Symbol oder den
--- Namen "Well Fed" (vom Spiel, siehe oben).
+-- Ist dieser Buff ein Essens-Buff? Über die Listen, das Well-Fed-Symbol oder den Namen "Well Fed"
+-- (vom Spiel, siehe oben).
 function B.IstEssen(a)
   if not a then return false end
-  if ns.db.essenIds[a.id] then return true end
-  local icon = a.icon
-  if type(icon) == "number" and (icon == ns.ESSEN_ICON or ns.db.essenIcons[icon] ~= nil) then return true end
+  if MIT_XP[a.id] or OHNE_XP[a.id] or a.icon == ns.ESSEN_ICON then return true end
   local name = B.WellFedName()
   return name ~= nil and a.name == name
 end
 
--- Gibt dieser Essens-Buff den Erfahrungsbonus? Nicht jedes Well Fed tut das: Der Bobbing Apple
--- gibt Well Fed nur mit Ausdauer und Willenskraft, gekochtes Essen dazu +5 % Erfahrung (Patrick,
--- 18. Okt). Der Bonus steht als Prozentwert im Tooltip des Buffs ("... increased by 5%"). Das
--- Prozentzeichen ist in jeder Sprache gleich. Einmal je Zauber-ID nachsehen, außerhalb des Kampfes,
--- gemerkt in ns.db.essenXp. Rückgabe: true, false oder nil (noch unbekannt, zählt wie true).
-local function prozentImTooltip(a)
-  if not (a.instanz and C_TooltipInfo and C_TooltipInfo.GetUnitBuffByAuraInstanceID) then return nil end
-  local ok, daten = pcall(C_TooltipInfo.GetUnitBuffByAuraInstanceID, "player", a.instanz)
-  if not ok or type(daten) ~= "table" or type(daten.lines) ~= "table" or #daten.lines < 2 then return nil end
-  for _, l in ipairs(daten.lines) do
-    for _, t in ipairs({ l.leftText, l.rightText }) do
-      if type(t) == "string" and not geheim(t) and string.find(t, "%d+%s*%%") then return true end
-    end
-  end
-  return false
-end
-
+-- Gibt dieser Essens-Buff den Erfahrungsbonus? Nein sagt nur die Liste OHNE_XP. Neues Essen, das
+-- in keiner Liste steht, zählt mit Bonus: Sonst warnt die Leiste dauerhaft, obwohl man gegessen hat.
+-- Bis 1.1.2 stand hier die Suche nach einem Prozentwert im Tooltip. Der Bonus steht aber gar nicht
+-- im Tooltip ("Your Strength is increased by 1."), er liegt in der verborgenen Aura. So galt
+-- gekochtes Essen als Essen ohne Bonus (Patrick, 6. Nov).
 function B.MitXp(a)
-  local merk = ns.db.essenXp
-  if merk[a.id] ~= nil then return merk[a.id] end
-  if InCombatLockdown and InCombatLockdown() then return nil end
-  local p = prozentImTooltip(a)
-  if p ~= nil then merk[a.id] = p end
-  return p
+  return not OHNE_XP[a.id]
 end
 
 -- Restzeit in Sekunden. nil: der Buff hat keine Ablaufzeit (hält, solange man bleibt).
@@ -174,7 +178,7 @@ function B:Lesen()
       if a.id == ns.CAMPFIRE_NEARBY or ns.COUNTDOWN_IDS[a.id] then feuer = true end
       -- Als Essen zählt nur Well Fed mit Erfahrungsbonus, das andere wird nur angezeigt
       if B.IstEssen(a) then
-        if B.MitXp(a) == false then
+        if not B.MitXp(a) then
           if laenger(a, ohneXp) then ohneXp = a end
         elseif laenger(a, essen) then
           essen = a
@@ -184,9 +188,13 @@ function B:Lesen()
   else
     feuer = einzeln(ns.CAMPFIRE_NEARBY) ~= nil
     for id in pairs(verfolgt) do neu[id] = einzeln(id) end
-    for id in pairs(ns.db.essenIds) do
+    for id in pairs(MIT_XP) do
       local a = einzeln(id)
       if a and laenger(a, essen) then essen = a end
+    end
+    for id in pairs(OHNE_XP) do
+      local a = einzeln(id)
+      if a and laenger(a, ohneXp) then ohneXp = a end
     end
   end
 
@@ -200,17 +208,14 @@ function B:Lesen()
     if rest and rest <= 3 then ns.Erinnerung:Abgelaufen(self.essen, true) end
   end
 
-  -- Neu dazugekommener Buff mit Ablaufzeit (zum Beispiel eben gegessen): für den Knopf
-  -- "ist mein Essen" auf der Status-Seite, falls das Essen nicht von selbst erkannt wird
-  -- Dazu der Countdown beim Sitzen am Feuer: Zauber-ID noch unbekannt, deshalb ein neuer Buff
-  -- mit etwa einer Minute Dauer, solange man am Feuer ist (oder eine bekannte ID).
+  -- Countdown beim Sitzen am Feuer: Zauber-ID noch unbekannt, deshalb ein neuer Buff mit etwa
+  -- einer Minute Dauer, solange man am Feuer ist (oder eine bekannte ID).
   if geht then
     local vorher = self.zuletztIds or {}
     local jetzt = {}
     for _, a in ipairs(alle) do
       jetzt[a.id] = true
       if not vorher[a.id] and self.zuletztIds then
-        if (a.dauer or 0) > 0 then self.neuester = { aura = a, zeit = ns.jetzt() } end
         local countdown = ns.COUNTDOWN_IDS[a.id]
           or (feuer and a.dauer >= 45 and a.dauer <= 75 and a.id ~= ns.CAMP_BENEFITS and not B.IstEssen(a))
         if countdown and ns.Show then
@@ -302,54 +307,6 @@ function B:Liste()
   return l
 end
 
--- Klassen-Buffs, die einen Lager-Bonus ersetzen (Objekte.lua, O.FAMILIE konflikt): Power Word:
--- Fortitude, Mark of the Wild, Arcane Intellect, die Segen und so weiter. Nie Essen. Über die
--- Zauber-ID und den Namen, den das Spiel zu dieser ID nennt (höhere Ränge heißen gleich).
-local klassenNamen
-local function klassenBuff(a)
-  local O = ns.Objekte
-  if not (O and O.FAMILIE) then return false end
-  if not klassenNamen then
-    klassenNamen = { ids = {}, namen = {} }
-    for _, f in pairs(O.FAMILIE) do
-      for _, id in ipairs(f.konflikt or {}) do
-        klassenNamen.ids[id] = true
-        local n = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
-        if type(n) == "string" and n ~= "" then klassenNamen.namen[n] = true end
-      end
-    end
-  end
-  return klassenNamen.ids[a.id] or (type(a.name) == "string" and klassenNamen.namen[a.name]) or false
-end
-
--- Kandidat für "ist mein Essen": vor höchstens 2 Minuten dazugekommen, noch aktiv, kein Essen erkannt
-function B:EssenKandidat()
-  if self:Essen() or not self.neuester then return nil end
-  if ns.jetzt() - self.neuester.zeit > 120 then return nil end
-  local a = self.neuester.aura
-  -- Essen läuft lange (meist 15 Minuten). Der Countdown beim Sitzen (1 Minute) ist nie Essen.
-  if not laeuft(a) or ns.STANDARD_BUFFS[a.id] or (a.dauer or 0) <= 120 then return nil end
-  -- Schon als Essen erkannt, nur ohne Erfahrungsbonus (Bobbing Apple): nichts zu markieren
-  if B.IstEssen(a) then return nil end
-  -- Kein Essen: Buffs von anderen (Essen gibt man sich selbst) und eigene Zauber des Chars, zum
-  -- Beispiel Demon Skin (Patricks Screenshot, 16. Okt). Erkannt an der Zauber-ID, nicht am Namen.
-  -- Bei Spielern außerhalb der Gruppe nennt das Spiel keine Quelle: dann ist es auch kein Essen
-  -- (Patrick, 18. Okt: Power Word: Fortitude eines Fremden wurde als Essen angeboten).
-  if a.quelle ~= "player" or klassenBuff(a) then return nil end
-  if IsPlayerSpell then
-    local ok, kennt = pcall(IsPlayerSpell, a.id)
-    if ok and kennt then return nil end
-  end
-  return a
-end
-
--- Wurde das erkannte Essen vom Spieler markiert (dann darf er die Markierung vergessen)?
-function B:EssenMarkiert()
-  local e = self:Essen()
-  if not e then return nil end
-  if ns.db.essenIds[e.id] or (type(e.icon) == "number" and ns.db.essenIcons[e.icon]) then return e end
-end
-
 -- Was fehlt gerade? Für die Hinweise beim Login und Gruppenbeitritt.
 function B:Fehlt()
   local L = ns.L
@@ -366,32 +323,6 @@ function B:Umschalten(id, name)
   ns.db.eigeneBuffs[id] = an and (name or tostring(id)) or nil
   self:Lesen()
   return an
-end
-
--- Buff als Essens-Buff markieren oder die Markierung entfernen (über ID und Symbol)
--- Gilt der Buff schon als Essen, wird die Markierung entfernt: seine ID, sein Symbol und alle
--- anderen IDs mit demselben Symbol. Sonst werden ID und Symbol gemerkt.
--- essenIds[id] = { name, icon }
-function B:EssenUmschalten(a)
-  if not a then return nil end
-  local an = not B.IstEssen(a)
-  local name = a.name or tostring(a.id)
-  local icon = type(a.icon) == "number" and a.icon or nil
-  if an then
-    ns.db.essenIds[a.id] = { name = name, icon = icon }
-    if icon and icon ~= ns.ESSEN_ICON then ns.db.essenIcons[icon] = name end
-  else
-    ns.db.essenIds[a.id] = nil
-    if icon then
-      ns.db.essenIcons[icon] = nil
-      for id, e in pairs(ns.db.essenIds) do
-        if type(e) == "table" and e.icon == icon then ns.db.essenIds[id] = nil end
-      end
-    end
-  end
-  self:Lesen()
-  -- Was gilt jetzt wirklich? (Ein Buff mit dem Well-Fed-Symbol bleibt Essen, auch ohne Markierung)
-  return B.IstEssen(a)
 end
 
 -- UNIT_AURA nur für den Spieler, auf einem eigenen Rahmen: Gruppe, Schlachtzug und

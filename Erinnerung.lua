@@ -34,7 +34,7 @@ function E:Abgelaufen(a, istEssen)
   if schonGemeldet(ns.db.abgelaufen, a) then return end
   ns.db.abgelaufen[a.id] = a.ende or 0
   ns.melde(string.format(istEssen and L.MSG_FOOD_RAN_OUT or L.MSG_RAN_OUT, name(a)))
-  if istEssen and ns.db.ton and ns.Buffs.MitXp(a) ~= false and PlaySoundFile then
+  if istEssen and ns.db.ton and ns.Buffs.MitXp(a) and PlaySoundFile then
     pcall(PlaySoundFile, E.HUNGER, "SFX")
   end
 end

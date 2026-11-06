@@ -490,7 +490,8 @@ function LG:Benefits()
   for _, z in ipairs(zeilen) do
     local o = LG.Erkennen(z)
     if o and o.art ~= "feuer" then
-      local zahl, prozent = string.match(z, ":%D*(%d+)(%%?)")
+      -- Deutscher Client: "1 %" mit Leerzeichen, auch geschütztem (UTF-8 C2 A0), vor dem Prozentzeichen
+      local zahl, prozent = string.match(z, ":%D*(%d+)[%s\194\160]*(%%?)")
       local wert = tonumber(zahl)
       local alt = boni[o.familie]
       if not alt or LG.Rang(o) > LG.Rang(alt.o) then boni[o.familie] = { o = o, wert = wert } end

@@ -1,5 +1,13 @@
 # Campfire Buddy changelog
 
+## 1.1.3 (2026-11-06)
+
+- **Fix**: your food buff is recognized by its spell ID now. Cooked food with the experience bonus counts right away, in every game language, and the "No food buff" row stays away while you are Well Fed. Before, cooked food was often taken for a snack without the bonus and the row kept glowing.
+- There is nothing to mark by hand anymore, the "is my food" button is gone. Old marks are cleaned up by themselves, so a pet or class buff marked by mistake no longer counts as food.
+- **Fix**: minimap button collectors like MinimapButtonButton now pick up the Campfire Buddy button.
+- **Fix**: camp values in percent show correctly in game languages that put a space before the percent sign, like German.
+- `/campfire debug` also names your food buff and the minimap button.
+
 ## 1.1.2 (2026-10-18)
 
 - **Fix**: when someone places a bigger campfire at your camp (a Journeyman Campfire after a Basic one), Campfire Buddy now notices it, and also when a normal one burns there again later. The fire you point at counts, a fire placed right next to you becomes the fire of this camp, and when a fire goes out while you stand there, the next one starts fresh. Before, the camp stayed at 3 slots and every object you pointed at pushed another one out, so the camp check said "Not worth it".
