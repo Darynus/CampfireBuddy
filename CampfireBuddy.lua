@@ -81,6 +81,13 @@ end
 
 function ns.melde(text)
   DEFAULT_CHAT_FRAME:AddMessage(ns.FARBE .. L.ADDON_NAME .. ":|r " .. tostring(text))
+  -- Fehler aus Ereignissen auch merken: nach /reload stehen sie in den gespeicherten Daten
+  -- (fehlerLog), auch ohne BugSack (Patrick, 13. Nov: „du kannst ja auch die Logs lesen“)
+  if ns.db and string.find(tostring(text), "^Error in ") then
+    ns.db.fehlerLog = type(ns.db.fehlerLog) == "table" and ns.db.fehlerLog or {}
+    table.insert(ns.db.fehlerLog, date("%Y-%m-%d %H:%M:%S") .. "  " .. tostring(text))
+    while #ns.db.fehlerLog > 30 do table.remove(ns.db.fehlerLog, 1) end
+  end
 end
 
 -- Hinweis in der Bildschirmmitte plus Chatzeile, mit kurzem Ton, wenn eingeschaltet

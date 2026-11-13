@@ -26,6 +26,8 @@ ns.Lager = LG
 
 local FEUER_DAUER = 15 * 60   -- ein Feuer brennt etwa 15 Minuten
 local WEG_FRIST = 90          -- so lange darf man weg sein, ohne dass das Lager vergessen wird
+local ANDERES_FEUER = 50      -- Meter: wer weiter weg ankommt, ist an einem anderen Feuer (Feuer
+                              -- stehen mindestens 100 Meter auseinander)
 local FEUER_VORLAUF = 20      -- Feuer aufgestellt, "Campfire Nearby" kommt kurz danach
 
 local function geheim(v) return issecretvalue ~= nil and issecretvalue(v) end
@@ -281,11 +283,17 @@ local function speichern(self)
   karteFuellen(self)
 end
 
--- "Campfire Nearby" kam (Buffs.lua)
+-- "Campfire Nearby" kam (Buffs.lua). Ein neues Lager beginnt, wenn man lange weg war oder an einem
+-- anderen Feuer ankommt (Patrick, 13. Nov: drei Objekte vom vorigen Feuer standen noch in der Liste,
+-- er war nach weniger als 90 Sekunden am nächsten Feuer).
 function LG:Ankunft()
   local t = ns.jetzt()
-  if not self.aktiv and not (self.weg and t - self.weg < WEG_FRIST) then
+  local hier = position()
+  local anderes = hier ~= nil and self.ort ~= nil and (hier.karte ~= self.ort.karte
+    or (hier.x - self.ort.x) ^ 2 + (hier.y - self.ort.y) ^ 2 > ANDERES_FEUER ^ 2)
+  if not self.aktiv and (anderes or not (self.weg and t - self.weg < WEG_FRIST)) then
     self:Neu()
+    self.ort = hier
     wiederholen(self, not self.schonDa)
     self.aktiv = true
     self:OrtMerken(false)

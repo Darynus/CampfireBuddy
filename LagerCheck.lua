@@ -298,7 +298,7 @@ function C:Aktualisieren()
   if r.urteil == "pruefen" then
     table.insert(zeilen, farbe(F.hinweis, string.format(L.CHECK_STALE, #r.unsicher)))
   elseif offen and offen > 0 then
-    table.insert(zeilen, farbe(F.hinweis, string.format(L.CHECK_HOVER, offen)))
+    table.insert(zeilen, farbe(F.hinweis, offen == 1 and L.CHECK_HOVER_ONE or string.format(L.CHECK_HOVER, offen)))
   elseif not r.plaetze and r.bekannt == 0 then
     table.insert(zeilen, farbe(F.hinweis, L.CHECK_HOVER_ALL))
   end

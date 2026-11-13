@@ -5,6 +5,7 @@
 - **Supplies in the Camp Kit**: at a campfire the Camp Kit gets a second row with weapon buffs for your main hand and off hand (sharpening stones, weightstones, oils, poisons) and their time left, your Cozy Sleeping Bag and three free slots for food, drinks or potions. One click uses it, and a weapon without a buff makes its slot glow. Drag an item onto a slot to choose it, right-click to clear it.
 - **Key bindings** for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns > Campfire Buddy.
 - **Announce your camp**: one click on the horn in the Camp Kit tells others in Say or General, with a map pin and your own text if you like. Right-click shares the camp with your group, and group members with Campfire Buddy see it on their map. Only when you click, never during a boss fight, and no hidden chat channels.
+- **Fix**: arriving at another campfire soon after leaving one now starts a new camp. Before, the objects of the last fire stayed in the list.
 - **Rested XP at the fire**: the bar shows your rested XP, how much you gain per hour while you sit there, and when it is full. The moment it is full, a message on screen and in your chat tells you it is time to move on.
 - **Show the bar only when needed**: at a campfire, or when a camp buff or your food is missing or about to run out. Or let it fade until you point at it.
 - **Map**: campfire pins come in three sizes and show on OpenMap's stitched world map too, with a switch in OpenMap's menu.
