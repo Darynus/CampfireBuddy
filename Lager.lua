@@ -802,6 +802,16 @@ function LG:Objekt(text, zeilen)
   if lagerZeilen(o, zeilen) then return self:Merken(o, "tooltip") end
   self.vermutet = self.vermutet or {}
   self.vermutet[o.familie] = { o = o, zeit = serverZeit() }
+  self:Geaendert()
+end
+
+-- Der Spieler bestätigt ein vermutetes Objekt mit einem Klick auf seinen Platz im Lager-Check
+-- (Patrick, 13. Nov: „das Tanning Rack wurde nicht erkannt“): Es steht an diesem Feuer. Quelle
+-- "bestaetigt", damit es auch nach /reload zählt (Maus-Funde mehrdeutiger Objekte zählen dort nicht).
+function LG:Bestaetigen(o)
+  if not self.aktiv or not o then return end
+  if self.vermutet then self.vermutet[o.familie] = nil end
+  self:Merken(o, "bestaetigt")
 end
 
 -- Maus über einem Objekt (auch fern vom eigenen Feuer): Werte je Levelbereich aus dem Tooltip des

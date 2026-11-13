@@ -197,8 +197,22 @@ function C:Bauen()
     p.icon:SetPoint("BOTTOMRIGHT", -2, 2)
     p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     p:EnableMouse(true)
-    O.TooltipAn(p, function(self) return self.eintrag and self.eintrag.o end, function(self, tt)
-      if self.eintrag and not C.Sicher(self.eintrag) then
+    -- Vermutet (Name wie ein Ding im Dorf): Fragezeichen, ein Klick bestätigt es
+    p.frage = S.schrift(p, "GameFontNormalLarge", F.hinweis)
+    p.frage:SetPoint("CENTER", 0, 0)
+    p.frage:SetText("?")
+    p.frage:Hide()
+    p:SetScript("OnMouseUp", function(self, knopf)
+      if knopf == "LeftButton" and self.vermutet then
+        S.klick()
+        LG:Bestaetigen(self.vermutet.o)
+      end
+    end)
+    O.TooltipAn(p, function(self) return (self.eintrag and self.eintrag.o) or (self.vermutet and self.vermutet.o) end, function(self, tt)
+      if self.vermutet then
+        tt:AddLine(" ")
+        tt:AddLine(L.CHECK_GUESS_SLOT, F.hinweis[1], F.hinweis[2], F.hinweis[3], true)
+      elseif self.eintrag and not C.Sicher(self.eintrag) then
         tt:AddLine(" ")
         tt:AddLine(L.CHECK_SLOT_STALE, F.leise[1], F.leise[2], F.leise[3], true)
       end
@@ -245,14 +259,31 @@ function C:Aktualisieren()
   local objekte = {}
   for _, e in pairs(LG.objekte) do table.insert(objekte, e) end
   table.sort(objekte, function(a, b) return tostring(a.o.spell) < tostring(b.o.spell) end)
-  local zeigen = math.min(MAX_PLAETZE, r.plaetze or math.max(3, #objekte))
+  -- Vermutete Objekte (mehrdeutiger Name, nur mit der Maus gesehen) auf die freien Plätze danach
+  local vermutet = {}
+  for fam, v in pairs(LG.vermutet or {}) do
+    if not LG.objekte[fam] then table.insert(vermutet, v) end
+  end
+  table.sort(vermutet, function(a, b) return tostring(a.o.spell) < tostring(b.o.spell) end)
+  local zeigen = math.min(MAX_PLAETZE, r.plaetze or math.max(3, #objekte + #vermutet))
+  local gezeigt = {}
   for i, p in ipairs(f.plaetze) do
     local e = objekte[i]
+    local v = not e and vermutet[i - #objekte] or nil
     p:ClearAllPoints()
     p:SetPoint("TOPLEFT", f.titel, "BOTTOMLEFT", (i - 1) * PLATZ_ABSTAND, -6 - kopf)
     p:SetShown(i <= zeigen)
-    p.eintrag = e
-    if e then
+    p.eintrag, p.vermutet = e, (i <= zeigen) and v or nil
+    p.frage:SetShown(p.vermutet ~= nil)
+    if p.vermutet then
+      local _, icon = O.Anzeige(v.o)
+      p.icon:SetTexture(icon)
+      p.icon:SetDesaturated(true)
+      p.icon:SetAlpha(0.55)
+      p.icon:Show()
+      S.randFarbe(p, F.hinweis)
+      table.insert(gezeigt, v)
+    elseif e then
       local _, icon = O.Anzeige(e.o)
       local sicher = C.Sicher(e)
       p.icon:SetTexture(icon)
@@ -309,12 +340,17 @@ function C:Aktualisieren()
   else
     table.insert(zeilen, farbe(F.leise, L.CHECK_TIME_NONE))
   end
-  local offen = r.plaetze and (r.plaetze - r.bekannt) or nil
+  local offen = r.plaetze and (r.plaetze - r.bekannt - #gezeigt) or nil
+  if #gezeigt > 0 then
+    local namen = {}
+    for _, v in ipairs(gezeigt) do table.insert(namen, (O.Anzeige(v.o))) end
+    table.insert(zeilen, farbe(F.hinweis, string.format(L.CHECK_GUESS, table.concat(namen, ", "))))
+  end
   if r.urteil == "pruefen" then
     table.insert(zeilen, farbe(F.hinweis, string.format(L.CHECK_STALE, #r.unsicher)))
   elseif offen and offen > 0 then
     table.insert(zeilen, farbe(F.hinweis, offen == 1 and L.CHECK_HOVER_ONE or string.format(L.CHECK_HOVER, offen)))
-  elseif not r.plaetze and r.bekannt == 0 then
+  elseif not r.plaetze and r.bekannt == 0 and #gezeigt == 0 then
     table.insert(zeilen, farbe(F.hinweis, L.CHECK_HOVER_ALL))
   end
   f.text:SetText(table.concat(zeilen, "\n"))

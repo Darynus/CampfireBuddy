@@ -314,6 +314,8 @@ L.CHECK_HOVER_ONE = "1 slot unknown: empty, or hover over the objects at the fir
 L.CHECK_HOVER_ALL = "Hover over the objects at the fire to check them."
 L.CHECK_CHECK = "Hover over the objects first"
 L.CHECK_MAYBE = "Not seen lately:"
+L.CHECK_GUESS = "%s: villages have these too. Click its slot if it stands at this fire."
+L.CHECK_GUESS_SLOT = "Villages have this too, so Campfire Buddy is not sure it stands at your fire. Click to confirm. Sitting down confirms it as well."
 L.CHECK_SLOT_STALE = "Not seen lately, it may be gone. Point at it at the fire to check."
 L.CHECK_STALE = "%d not seen lately, they may be gone. Sitting down replaces all your Camp Benefits: hover over the objects to check."
 L.LEARN_TRAINER_PROF = "Learn it from your profession trainer."
@@ -789,6 +791,9 @@ L.NEWS_AGAIN = "Show this after updates"
 L.NEWS_AGAIN_HELP = "A short window once after Campfire Buddy was updated. /campfire news shows it again."
 L.NEWS_OK = "Got it"
 L.NEWS = {
+  { version = "1.2.1", zeilen = {
+    "Camp check: a Tanning Rack, Anvil, Spinning Wheel or Loom you point at shows with a question mark, because villages have them too. Click its slot if it stands at your fire, and it counts right away.",
+  } },
   { version = "1.2.0", zeilen = {
     "Supplies in the Camp Kit: weapon buffs for both hands with their time left (a glow tells you when a weapon has none), your sleeping bag and three slots for food, drinks or potions. Drag an item onto a slot to choose it.",
     "Key bindings for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns.",

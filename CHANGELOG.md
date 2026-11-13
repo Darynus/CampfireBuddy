@@ -1,5 +1,9 @@
 # Campfire Buddy changelog
 
+## 1.2.1 (2026-11-13)
+
+- **Fix**: a Tanning Rack, Anvil, Spinning Wheel or Loom you point at now shows in the camp check, with a question mark: villages have them too, and their tooltip looks the same. Click its slot if it stands at your fire, and it counts right away. Sitting down still confirms it by itself.
+
 ## 1.2.0 (2026-11-13)
 
 - **Supplies in the Camp Kit**: at a campfire the Camp Kit gets a second row with weapon buffs for your main hand and off hand (sharpening stones, weightstones, oils, poisons) and their time left, your Cozy Sleeping Bag and three free slots for food, drinks or potions. One click uses it, and a weapon without a buff makes its slot glow. Drag an item onto a slot to choose it, right-click to clear it.
