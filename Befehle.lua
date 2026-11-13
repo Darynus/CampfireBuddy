@@ -30,6 +30,11 @@ ns.befehl("show", L.CMD_SHOW, function() ns.Show:Vorschau() end)
 
 ns.befehl("play", L.CMD_PLAY, function() ns.Spiel:Menue(false) end)
 
+-- Getippt zählt wie ein Klick: Chat und Gruppe nur so (Ankuendigen.lua)
+ns.befehl("announce", L.CMD_ANNOUNCE, function() ns.Ankuendigen:Ankuendigen() end)
+ns.befehl("share", L.CMD_SHARE, function() ns.Ankuendigen:Teilen() end)
+ns.befehl("news", L.CMD_NEWS, function() ns.Neuigkeiten:Umschalten() end)
+
 -- Was Campfire Buddy an diesem Lager liest, für Fehlerberichte
 ns.befehl("debug", L.CMD_DEBUG, function()
   local LG = ns.Lager

@@ -1,0 +1,20 @@
+<!-- Tasten für Campfire Buddy (Esc > Optionen > Tastaturbelegung > AddOns). Die Knöpfe haben feste
+     Namen: Camp Kit Platz 1 bis 8 und das Lagerfeuer zeigen auf den Knopf, der dort gerade steht
+     (Kit.lua), die Lagerkiste hat eigene Knöpfe (Vorrat.lua). Ein Tastendruck ist ein Klick. -->
+<Bindings>
+	<Binding name="CLICK CampfireBuddyKitSlot1:LeftButton" header="CAMPFIREBUDDY" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot2:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot3:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot4:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot5:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot6:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot7:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyKitSlot8:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyFireKit:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyWeaponMain:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddyWeaponOff:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddySleepingBag:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddySupply1:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddySupply2:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK CampfireBuddySupply3:LeftButton" category="ADDONS"/>
+</Bindings>

@@ -15,6 +15,14 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 
 ![How it works](images/campfirebuddy-1-ablauf.png)
 
+## New in 1.2
+
+- **Supplies in the Camp Kit**: weapon buffs for both hands with their time left, your sleeping bag and three slots for food, drinks or potions. One click each, a glow when a weapon has no buff.
+- **Key bindings** for every Camp Kit button, the campfire button and the supplies.
+- **Announce your camp** in Say or General with a map pin, or share it with your group so they see it on their map.
+- **Rested XP at the fire**: how much you gain per hour and when it is full.
+- **Show the bar only when needed**, or let it fade until you point at it. Campfire pins in three sizes, also on OpenMap.
+
 ## Ten campfire games
 
 Open them from the **Games** tab, with **Play** in the murloc show, with Shift-click on the minimap button or with `/campfire play`. Every game keeps your best score, and our own little tunes play along. A volume slider under the games turns music and sounds down or off.
@@ -101,11 +109,15 @@ The window looks and feels like the game's own windows. Every reminder, the bar,
 | `/campfire lock` | lock or unlock the bar |
 | `/campfire minimap` | bring the minimap button back |
 | `/campfire test` | show the reminder once |
+| `/campfire announce` | announce this camp in chat |
+| `/campfire share` | share this camp with your group |
+| `/campfire news` | show what is new |
 | `/campfire help` | list all commands |
 
 ## Safe and fair
 
-- **Nothing happens on its own.** Sitting down, building and placing camp objects only happen when you click, one action per click. Campfire Buddy sends no messages.
+- **Nothing happens on its own.** Sitting down, building, placing camp objects and using your supplies only happen when you click or press your key, one action each.
+- **Messages only when you click.** Announce and Share send one message each, never during a boss fight, at most one every 10 seconds. No hidden chat channels.
 - **Every game language**: buffs, professions and items are recognized by their IDs, never by names.
 - **Combat safe**: nothing is read in combat, the games close when a fight starts and the Camp Kit and the campfire button never change during combat.
 - Free, no ads, and the code is open on [GitHub](https://github.com/Darynus/CampfireBuddy).

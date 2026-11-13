@@ -696,3 +696,33 @@ function S.blase(parent)
   b:Hide()
   return b
 end
+
+-- Eingabefeld für kurze Texte (eigener Text der Ankündigung). beiEnter(text) beim Bestätigen mit
+-- Enter. Eingabefeld des Spiels (InputBoxTemplate), sonst ein flacher Kasten. Vorlage: Pigeon Post.
+function S.eingabe(parent, breite, maxZeichen, beiEnter)
+  local e = S.vorlage("EditBox", parent, "InputBoxTemplate")
+  local echt = e ~= nil
+  if e then
+    e:SetSize(breite - 6, 20)
+  else
+    e = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
+    e:SetSize(breite, 22)
+    if e.SetBackdrop then
+      e:SetBackdrop({ bgFile = S.WEISS, edgeFile = S.WEISS, edgeSize = 1 })
+      e:SetBackdropColor(rgba(F.flaeche))
+      e:SetBackdropBorderColor(rgba(F.rand))
+    end
+  end
+  e:SetAutoFocus(false)
+  e:SetMaxLetters(maxZeichen or 24)
+  if GameFontHighlightSmall then e:SetFontObject(GameFontHighlightSmall) end
+  if echt then e:SetTextInsets(0, 0, 0, 0) else e:SetTextInsets(8, 8, 0, 0) end
+  e:SetScript("OnEnterPressed", function(self)
+    self:ClearFocus()
+    beiEnter(self:GetText() or "")
+  end)
+  e:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  e:HookScript("OnEditFocusGained", function(self) S.randFarbe(self, F.akzent) end)
+  e:HookScript("OnEditFocusLost", function(self) S.randFarbe(self, F.rand) end)
+  return e
+end

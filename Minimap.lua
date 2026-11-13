@@ -12,11 +12,50 @@ ns.Minimap = M
 
 local STANDARD_WINKEL = 290
 
+-- Form der Minikarte. Add-ons wie Leatrix Plus oder SexyMap machen sie eckig und melden das über
+-- GetMinimapShape. Je Viertel (rechts oben, links oben, rechts unten, links unten): rund oder eckig.
+-- Im eckigen Viertel läuft der Knopf am Rand entlang statt auf dem Kreis (Wunsch aus den
+-- Kommentaren anderer Add-ons, 13. Nov).
+local FORMEN = {
+  ROUND = { true, true, true, true },
+  SQUARE = { false, false, false, false },
+  ["CORNER-TOPLEFT"] = { false, false, false, true },
+  ["CORNER-TOPRIGHT"] = { false, false, true, false },
+  ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
+  ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
+  ["SIDE-LEFT"] = { false, true, false, true },
+  ["SIDE-RIGHT"] = { true, false, true, false },
+  ["SIDE-TOP"] = { false, false, true, true },
+  ["SIDE-BOTTOM"] = { true, true, false, false },
+  ["TRICORNER-TOPLEFT"] = { false, true, true, true },
+  ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
+  ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
+  ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+}
+
 local function position(knopf)
   local winkel = math.rad(ns.db.minimapWinkel or STANDARD_WINKEL)
-  local radius = (Minimap:GetWidth() or 140) / 2 + 5
+  local x, y = math.cos(winkel), math.sin(winkel)
+  local viertel = 1
+  if x < 0 then viertel = viertel + 1 end
+  if y > 0 then viertel = viertel + 2 end
+  local form = "ROUND"
+  if GetMinimapShape then
+    local ok, f = pcall(GetMinimapShape)
+    if ok and type(f) == "string" then form = f end
+  end
+  local rund = (FORMEN[form] or FORMEN.ROUND)[viertel]
+  local w = (Minimap:GetWidth() or 140) / 2 + 5
+  local h = (Minimap:GetHeight() or 140) / 2 + 5
+  if rund then
+    x, y = x * w, y * h
+  else
+    local dw, dh = math.sqrt(2 * w * w) - 10, math.sqrt(2 * h * h) - 10
+    x = math.max(-w, math.min(x * dw, w))
+    y = math.max(-h, math.min(y * dh, h))
+  end
   knopf:ClearAllPoints()
-  knopf:SetPoint("CENTER", Minimap, "CENTER", math.cos(winkel) * radius, math.sin(winkel) * radius)
+  knopf:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
 function M:Bauen()

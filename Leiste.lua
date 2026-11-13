@@ -1,6 +1,10 @@
 -- Leiste: klein und verschiebbar. Je verfolgtem Buff eine Zeile mit Icon, Name, Restzeit und
 -- Balken. Ohne Buff "No camp buff", am Lagerfeuer "Campfire nearby" (Knöpfe dafür im Camp Kit).
--- Fehlt der Essens-Buff, eine eigene Zeile "No food buff".
+-- Fehlt der Essens-Buff, eine eigene Zeile "No food buff". Am Feuer eine Zeile mit dem
+-- Erholungsbonus (Erholung.lua).
+-- Zeigen: immer, nur mit Lager-Buff, oder nur bei Bedarf (am Feuer, oder etwas fehlt oder endet
+-- bald). Auf Wunsch fast durchsichtig, bis die Maus darauf zeigt (Wünsche aus den Kommentaren
+-- anderer Lager-Add-ons, 13. Nov).
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 local F, rgba = S.F, S.rgba
@@ -11,6 +15,8 @@ ns.Leiste = B
 local BREITE, ZEILE, RAND = 230, 34, 4
 local MAX_ZEILEN = 4
 local WARNFARBE = { 0.96, 0.77, 0.32, 1 }
+local BLASS = 0.3
+local ERHOLUNG_ICON = "Interface\\Icons\\Spell_Nature_Sleep"
 
 local function setzen(schrift, text)
   if schrift.zuletzt ~= text then
@@ -155,6 +161,27 @@ function B:Bauen()
   essen.glanz:SetAlpha(0)
   essen.puls = S.pulsieren(essen.glanz, 0.1, 1, 1.1)
 
+  -- Zeile mit dem Erholungsbonus am Feuer
+  local erholung = CreateFrame("Frame", nil, f)
+  self.erholung = erholung
+  erholung:SetSize(BREITE - 2 * RAND, ZEILE)
+  erholung.icon = erholung:CreateTexture(nil, "ARTWORK")
+  erholung.icon:SetSize(26, 26)
+  erholung.icon:SetPoint("LEFT", 4, 0)
+  erholung.icon:SetTexture(ERHOLUNG_ICON)
+  erholung.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  erholung.titel = S.schrift(erholung, "GameFontHighlightSmall", F.text)
+  erholung.titel:SetPoint("TOPLEFT", 38, -5)
+  erholung.text = S.schrift(erholung, "GameFontHighlightSmall", F.leise)
+  erholung.text:SetPoint("TOPRIGHT", -6, -5)
+  erholung.balken = S.balken(erholung, BREITE - 2 * RAND - 44, 6)
+  erholung.balken:SetPoint("TOPLEFT", 38, -21)
+  erholung:Hide()
+
+  -- Verblassen: beim Zeigen mit der Maus wieder voll sichtbar
+  f:HookScript("OnEnter", function() B:Aktualisieren() end)
+  f:HookScript("OnLeave", function() B:Aktualisieren() end)
+
   -- Restzeit zweimal pro Sekunde, nur solange die Leiste sichtbar ist
   local warten = 0
   f:SetScript("OnUpdate", function(_, dt)
@@ -165,11 +192,26 @@ function B:Bauen()
   end)
 end
 
+-- Fehlt etwas oder endet bald? Lager-Buff, Essen (wenn eingeschaltet) oder ein verfolgter Buff
+-- unter der Warnzeit (ohne Warnzeit unter 10 Minuten)
+function B:Bedarf()
+  local grenze = (ns.db.warnenMinuten or 0) > 0 and ns.db.warnenMinuten * 60 or 600
+  if not ns.Buffs:Lager() then return true end
+  if ns.db.essenErinnern and ns.Buffs.gelesen and not ns.Buffs:Essen() then return true end
+  for _, a in ipairs(ns.Buffs:Liste()) do
+    local rest = ns.Buffs.Rest(a)
+    if rest and rest <= grenze then return true end
+  end
+  return false
+end
+
 -- Soll die Leiste gerade zu sehen sein?
 function B:Gewollt()
   if not ns.db.leisteZeigen then return false end
-  if not ns.db.nurMitBuff then return true end
-  return #ns.Buffs:Liste() > 0 or ns.Buffs.amFeuer
+  local modus = ns.db.leisteModus
+  if modus == "mitBuff" then return #ns.Buffs:Liste() > 0 or ns.Buffs.amFeuer end
+  if modus == "bedarf" then return ns.Buffs.amFeuer or self:Bedarf() end
+  return true
 end
 
 function B:Aktualisieren()
@@ -249,7 +291,38 @@ function B:Aktualisieren()
     self.essen:SetPoint("TOPLEFT", RAND, -RAND - zeilen * ZEILE)
     zeilen = zeilen + 1
   end
+
+  -- Erholungsbonus am Feuer: Stand, Rate pro Stunde, wann voll
+  local R = ns.Erholung
+  if R then R:Pruefen() end
+  local erholung = R and R.prozent
+  self.erholung:SetShown(erholung ~= nil)
+  if erholung then
+    self.erholung:ClearAllPoints()
+    self.erholung:SetPoint("TOPLEFT", RAND, -RAND - zeilen * ZEILE)
+    zeilen = zeilen + 1
+    local voll = erholung >= R.VOLL - 0.05
+    setzen(self.erholung.titel, voll and L.RESTED_FULL or string.format(L.RESTED_NOW, erholung))
+    local rate, bis = R:Rate(), R:BisVoll()
+    local text = ""
+    if not voll then
+      if rate == nil then
+        text = L.RESTED_MEASURING
+      elseif rate <= 0.05 then
+        text = L.RESTED_NOT_RISING
+      else
+        text = string.format(L.RESTED_RATE, rate) .. (bis and ("  " .. string.format(L.RESTED_FULL_IN, ns.dauerText(bis))) or "")
+      end
+    end
+    setzen(self.erholung.text, text)
+    self.erholung.balken:Setzen(math.min(1, erholung / R.VOLL), 0)
+  end
   self.rahmen:SetHeight(zeilen * ZEILE + 2 * RAND)
+
+  -- Verblassen, außer die Maus zeigt darauf oder es gibt gerade etwas zu tun
+  local maus = self.rahmen.IsMouseOver and self.rahmen:IsMouseOver()
+  local blass = ns.db.verblassen and not maus and not lagerplatz and not essenZeigen
+  self.rahmen:SetAlpha(blass and BLASS or 1)
 end
 
 -- Einmal kräftig aufblitzen, wenn man an einen möglichen Lagerplatz kommt

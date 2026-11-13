@@ -205,6 +205,27 @@ function LG:KartenEintraege(karte)
   return t
 end
 
+-- Lager, das ein Gruppenmitglied geteilt hat (Ankuendigen.lua): Eintrag auf der Karte wie bei
+-- eigenen Lagern, Quelle "gruppe", mit Namen des Absenders. Steht dort schon eins, wird es ergänzt.
+function LG:GruppenLager(karte, x, y, feuer, objekte, rest, wer)
+  if not ns.db then return end
+  local liste = kartenListe()
+  local nr = kartenSuchen(karte, x, y)
+  local e = nr and liste[nr]
+  if not e then
+    nr = neuerEintrag({ seit = serverZeit(), quelle = "gruppe" })
+    e = liste[nr]
+  end
+  e.karte, e.x, e.y = karte, x, y
+  e.genau = true
+  if feuer then e.feuer = feuer end
+  if #objekte > 0 or not e.objekte then e.objekte = objekte end
+  e.wer = e.wer or wer
+  if not e.welt then e.ende = math.max(e.ende or 0, serverZeit() + ((rest and rest > 0) and rest or FEUER_BRENNT)) end
+  if ns.Karte then ns.Karte:Zeichnen(true) end
+  return nr
+end
+
 function LG:KartenEintragWeg(nr)
   kartenListe()[nr] = nil
   if self.kartenNr == nr then self.kartenNr = nil end

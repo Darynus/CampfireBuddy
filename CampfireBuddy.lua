@@ -1,8 +1,9 @@
 -- Campfire Buddy: zeigt die Lager-Buffs und den Essens-Buff von WoW Forever mit Restzeit,
 -- erinnert vor dem Ablauf und meldet, wenn ein Lagerfeuer in der Nähe ist. Eigenständig, ohne PatricksPlan_Core.
 -- Regeln:
---   1. Nur lesen und anzeigen. Keine Add-on-Nachrichten, nichts geschieht von selbst.
---      Der Knopf "Sit" setzt den Char nur auf Klick hin.
+--   1. Nur lesen und anzeigen, nichts geschieht von selbst. Der Knopf "Sit" setzt den Char nur auf
+--      Klick hin. Chat und Add-on-Nachrichten nur auf Klick: Lager ankündigen und mit der eigenen
+--      Gruppe teilen (Ankuendigen.lua, Regel 4: nie im Bosskampf, höchstens alle 10 Sekunden).
 --   2. Buffs nur über Zauber-IDs erkennen, nie über Namen (jede Spielsprache).
 --   3. Im Kampf keine Buffs lesen (geheime Werte), die Restzeit läuft aus dem letzten Stand weiter.
 local ADDON, ns = ...
@@ -15,7 +16,9 @@ ns.VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetada
 -- Zauber-IDs aus der Beta (Probe, 14. Okt, Lagerfeuer in Elwynn)
 ns.CAMP_BENEFITS = 1229741   -- "Camp Benefits", nach einer Minute Sitzen am Feuer, 1 Stunde
 ns.CAMPFIRE_NEARBY = 1283391 -- "Campfire Nearby", solange man am Feuer steht, ohne Dauer
-ns.STANDARD_BUFFS = { [ns.CAMP_BENEFITS] = true }
+-- "Well-Rested" (429959) vom Schlafsack (Cozy Sleeping Bag): +1 % Erfahrung, bis dreimal, 2 Stunden
+ns.WELL_RESTED = 429959
+ns.STANDARD_BUFFS = { [ns.CAMP_BENEFITS] = true, [ns.WELL_RESTED] = true }
 -- Countdown-Buff beim Sitzen am Feuer ("Welcoming Campfire", eine Minute): 1229739 an Feuern von
 -- Spielern, 1289723 an Feuern in der Welt (IDs aus den Add-ons Fireside und Campfire Tales, im
 -- Spiel noch zu bestätigen). Unbekannte IDs erkennt Buffs.lua weiter über die Dauer.
@@ -30,12 +33,18 @@ local STANDARD = {
   allesDaMelden = true,  -- kurze Meldung, sobald Camp Benefits und Essen beide aktiv sind
   essenErinnern = true,  -- Essens-Buff (+5 % Erfahrung durch Kills) anzeigen, wenn er fehlt
   leisteZeigen = true,
-  nurMitBuff = false,
+  leisteModus = "immer", -- Leiste: "immer", "mitBuff" (mit Lager-Buff oder am Feuer), "bedarf" (am Feuer oder wenn etwas fehlt oder bald endet)
+  verblassen = false,    -- Leiste fast durchsichtig, bis die Maus darauf zeigt
   gesperrt = false,
   leiste = {},           -- Position der Leiste
   minimapZeigen = true,
   minimapWinkel = 290,
   karteZeigen = true,    -- Lagerfeuer auf der Weltkarte (Karte.lua)
+  nadelGroesse = 20,     -- Größe der Nadeln auf der Karte: 16, 20 oder 26
+  ansageKanal = "SAY",   -- Lager ankündigen: "SAY" oder "GENERAL" (Kanal 1)
+  ansageText = "",       -- eigener Text der Ankündigung, leer: Standardtext
+  vorratZeigen = true,   -- Lagerkiste im Camp Kit (Vorrat.lua)
+  vorrat = {},           -- ["Name-Realm"] = { haupt, neben, [1], [2], [3] } Gegenstands-IDs
   karte = {},            -- [Nummer] = Lager mit Ort, siehe Lager.lua
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
@@ -53,6 +62,8 @@ local STANDARD = {
   -- show, spiel: Positionen von Show und Spiel
   gewarnt = {},          -- [Zauber-ID] = Ablaufzeit, zu der schon gewarnt wurde
   abgelaufen = {},       -- [Zauber-ID] = Ablaufzeit, deren Ende schon gemeldet wurde
+  neuigkeitenZeigen = true, -- nach einem Update einmal zeigen, was neu ist (Neuigkeiten.lua)
+  -- zuletztVersion: zuletzt gestartete Version
   -- kit: Position des Camp Kits, feuerKnopf: Position des Lagerfeuer-Knopfs
   -- fenster: Position des Hauptfensters
 }
@@ -174,6 +185,8 @@ end
 
 ns.ereignis("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
+  -- Gab es die Einstellungen schon? Sonst ist Campfire Buddy frisch installiert (Neuigkeiten.lua)
+  ns.bestehend = CampfireBuddyDB ~= nil
   CampfireBuddyDB = CampfireBuddyDB or {}
   ergaenzen(CampfireBuddyDB, STANDARD)
   ns.db = CampfireBuddyDB
@@ -182,6 +195,11 @@ ns.ereignis("ADDON_LOADED", function(name)
   ns.db.spielBest = nil
   -- Bis 1.1.2: von Hand markiertes Essen und gemerkte "ohne Bonus". Jetzt stehen die IDs in Buffs.lua.
   ns.db.essenIds, ns.db.essenIcons, ns.db.essenXp = nil, nil, nil
+  -- Bis 1.1.3: Haken "nur mit Buff". Jetzt eine von drei Arten, die Leiste zu zeigen.
+  if ns.db.nurMitBuff ~= nil then
+    if ns.db.nurMitBuff then ns.db.leisteModus = "mitBuff" end
+    ns.db.nurMitBuff = nil
+  end
 end)
 
 ns.ereignis("PLAYER_LOGIN", function()

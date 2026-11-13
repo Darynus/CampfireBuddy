@@ -11,6 +11,9 @@
 -- Das Lagerfeuer hat einen eigenen kleinen Rahmen abseits der Leiste (Patrick, 18. Okt: nicht in
 -- der Reihe mit den Objekten): Trägt der Char einen Bausatz, ist der Knopf immer da, außer am
 -- Feuer. Ohne Bausatz nur, wenn Camp Benefits fehlen oder bald enden, dann zum Anzünden.
+-- Darunter die Lagerkiste (Vorrat.lua) und rechts ein Knopf zum Ankündigen (Ankuendigen.lua).
+-- Tasten (Bindings.xml): Stellvertreter mit festen Namen zeigen auf den Knopf, der gerade an Platz
+-- 1 bis 8 steht, und auf das Lagerfeuer. Ein Tastendruck ist ein Klick auf diesen Knopf.
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 local F, rgba = S.F, S.rgba
@@ -21,6 +24,8 @@ ns.Kit = K
 
 local GROESSE, ABSTAND, RAND = 32, 4, 6
 local SITZEN = "Interface\\Icons\\Spell_Nature_Sleep"
+local ANSAGE = "Interface\\Icons\\Ability_Warrior_BattleShout"
+local TASTEN = 8
 
 local function imKampf() return InCombatLockdown and InCombatLockdown() end
 
@@ -161,6 +166,50 @@ function K:Bauen()
 
   self.sitzen = knopf(f, nil)
   for i, o in ipairs(O.LISTE) do self.knoepfe[i] = knopf(o.art == "feuer" and feuer or f, o) end
+  if ns.Vorrat then ns.Vorrat:Bauen(f) end
+
+  -- Ankündigen: links in den Chat, rechts an die Gruppe (kein sicherer Knopf, nur Chat)
+  local a = CreateFrame("Button", nil, f, "BackdropTemplate")
+  self.ansage = a
+  a:SetSize(GROESSE, GROESSE)
+  a:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  if a.SetBackdrop then
+    a:SetBackdrop({ bgFile = S.WEISS, edgeFile = S.WEISS, edgeSize = 1 })
+    a:SetBackdropColor(rgba(F.flaeche))
+    a:SetBackdropBorderColor(rgba(F.rand))
+  end
+  a.icon = a:CreateTexture(nil, "ARTWORK")
+  a.icon:SetPoint("TOPLEFT", 2, -2)
+  a.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+  a.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  a.icon:SetTexture(ANSAGE)
+  a:SetScript("OnClick", function(_, taste)
+    if taste == "RightButton" then ns.Ankuendigen:Teilen() else ns.Ankuendigen:Ankuendigen() end
+  end)
+  a:HookScript("OnEnter", function(self)
+    S.randFarbe(self, S.heller(F.akzent))
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(L.BTN_ANNOUNCE, 1, 1, 1)
+    GameTooltip:AddLine(L.ANNOUNCE_HELP, F.leise[1], F.leise[2], F.leise[3], true)
+    GameTooltip:Show()
+  end)
+  a:HookScript("OnLeave", function(self) S.randFarbe(self, F.rand) GameTooltip:Hide() end)
+  a:Hide()
+
+  -- Stellvertreter für Tasten: klicken den Knopf, der gerade an ihrem Platz steht
+  self.tasten = {}
+  local function stellvertreter(name)
+    local p = CreateFrame("Button", name, UIParent, "SecureActionButtonTemplate")
+    p.runter = (GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")) and true or false
+    p:RegisterForClicks(p.runter and "AnyDown" or "AnyUp")
+    p:SetAttribute("type", "click")
+    p:SetScript("PreClick", function() K.perTaste = true end)
+    p:SetScript("PostClick", function() K.perTaste = nil end)
+    p:Hide()
+    return p
+  end
+  for i = 1, TASTEN do self.tasten[i] = stellvertreter("CampfireBuddyKitSlot" .. i) end
+  self.feuerTaste = stellvertreter("CampfireBuddyFireKit")
 end
 
 -- Welche Knöpfe jetzt auf der Leiste? Am Feuer: Sitzen und alle Objekte, die der Char bauen kann.
@@ -263,7 +312,9 @@ end
 -- Klick im Modus "bauen" auf der Leiste. Nur auf der angemeldeten Tastenkante, damit ein Klick
 -- nicht doppelt zählt.
 function K:BauKlick(b, runter)
-  if (runter and true or false) ~= b.runter or not b.objekt or b.modus ~= "bauen" then return end
+  -- Über eine Taste (Stellvertreter) kommt der Klick ohne Tastenkante an
+  if not K.perTaste and (runter and true or false) ~= b.runter then return end
+  if not b.objekt or b.modus ~= "bauen" then return end
   self:Craften(b.objekt)
 end
 
@@ -292,6 +343,7 @@ function K:Abklingen()
     b.abklingen:SetText(text)
     b.icon:SetDesaturated(text ~= "" or b.zustand == "material")
   end
+  if ns.Vorrat then ns.Vorrat:Takt() end
 end
 
 function K:Aktualisieren()
@@ -310,10 +362,36 @@ function K:Aktualisieren()
     b:SetPoint("TOPLEFT", RAND + (i - 1) * (GROESSE + ABSTAND), -RAND - 12)
     self:Herrichten(e)
   end
+  -- Tasten: Platz i zeigt auf den i-ten Knopf der Leiste
+  for i, p in ipairs(self.tasten) do
+    local e = liste[i]
+    p:SetAttribute("clickbutton", e and e.knopf or nil)
+    p:SetAttribute("type", e and "click" or nil)
+  end
+  -- Ankündigen ganz rechts, Lagerkiste als zweite Reihe
+  local breite = #liste
+  if #liste > 0 then
+    self.ansage:ClearAllPoints()
+    self.ansage:SetPoint("TOPLEFT", RAND + #liste * (GROESSE + ABSTAND), -RAND - 12)
+    self.ansage:Show()
+    breite = breite + 1
+  else
+    self.ansage:Hide()
+  end
+  local vorrat = 0
+  if ns.Vorrat then
+    if #liste > 0 then
+      vorrat = ns.Vorrat:Anordnen(self.rahmen, RAND, -RAND - 12 - GROESSE - ABSTAND)
+    else
+      for _, b in ipairs(ns.Vorrat.knoepfe) do b:Hide() end
+    end
+  end
+  breite = math.max(breite, vorrat)
   if #liste == 0 then
     self.rahmen:Hide()
   else
-    self.rahmen:SetWidth(math.max(90, 2 * RAND + #liste * GROESSE + (#liste - 1) * ABSTAND))
+    self.rahmen:SetWidth(math.max(90, 2 * RAND + breite * GROESSE + (breite - 1) * ABSTAND))
+    self.rahmen:SetHeight(GROESSE + 2 * RAND + 14 + (vorrat > 0 and (GROESSE + ABSTAND) or 0))
     self.rahmen:Show()
   end
   local feuer = self:FeuerAuswahl()
@@ -323,6 +401,8 @@ function K:Aktualisieren()
     self:Herrichten(feuer)
   end
   self.feuerRahmen:SetShown(feuer ~= nil)
+  self.feuerTaste:SetAttribute("clickbutton", feuer and feuer.knopf or nil)
+  self.feuerTaste:SetAttribute("type", feuer and "click" or nil)
 end
 
 -- Knopf für seinen Zustand herrichten und zeigen (nur außerhalb des Kampfes)

@@ -300,6 +300,9 @@ local function bauenKit()
     return z
   end)
   f.liste:SetPoint("TOPLEFT", 0, -64)
+  local kiste = S.absatz(f, B, F.leise)
+  kiste:SetPoint("TOPLEFT", 0, -64 - 46 * 6 - 8)
+  kiste:SetText(L.KIT_SUPPLIES_HELP)
 
   local FARBE = { vorrat = F.erfolg, bereit = F.erfolg, material = F.hinweis, lernen = F.leise, stufe = F.leise, beruf = F.leise }
   function f:Aktualisieren()
@@ -413,6 +416,15 @@ local function bauenLager()
   local f = seite("lager")
   local LG = ns.Lager
   S.ueberschrift(f, L.CAMP_TITLE):SetPoint("TOPLEFT", 0, 0)
+  -- Lager ankündigen (Chat) und mit der Gruppe teilen (Ankuendigen.lua), nur am Feuer
+  f.teilen = S.textKnopf(f, L.BTN_SHARE, 110, function() ns.Ankuendigen:Teilen() end)
+  f.teilen:SetHeight(20)
+  f.teilen:SetPoint("TOPRIGHT", 0, 3)
+  S.tooltip(f.teilen, L.BTN_SHARE, L.SHARE_HELP)
+  f.ansagen = S.textKnopf(f, L.BTN_ANNOUNCE, 100, function() ns.Ankuendigen:Ankuendigen() end)
+  f.ansagen:SetHeight(20)
+  f.ansagen:SetPoint("RIGHT", f.teilen, "LEFT", -6, 0)
+  S.tooltip(f.ansagen, L.BTN_ANNOUNCE, L.ANNOUNCE_HELP_WINDOW)
   f.feuer = S.absatz(f, B, F.text, "GameFontHighlight")
   f.feuer:SetPoint("TOPLEFT", 0, -16)
 
@@ -568,6 +580,8 @@ local function bauenLager()
     local anzahl = belegt == 1 and L.CAMP_OBJECTS_ONE or string.format(L.CAMP_OBJECTS_MANY, belegt)
     local EM = ns.Empfehlung
     local urteil = EM:Urteil()
+    if self.ansagen.Aktiv then self.ansagen:Aktiv(ns.Buffs.amFeuer and true or false) end
+    if self.teilen.Aktiv then self.teilen:Aktiv((ns.Buffs.amFeuer and IsInGroup and IsInGroup()) and true or false) end
     if not LG.aktiv then
       self.feuer:SetText(L.CAMP_NONE)
     elseif feuerName then
@@ -705,30 +719,35 @@ local function bauenEinstellungen()
   f.probe:SetPoint("LEFT", f.warnen, "RIGHT", 12, 0)
   S.tooltip(f.probe, L.BTN_PREVIEW, L.PREVIEW_HELP)
 
+  -- Zwei Spalten, damit Leiste, Kit, Karte und Ankündigen auf eine Seite passen
+  local H = B / 2
   local schalter = {
     { feld = "ton", text = L.OPT_SOUND, hilfe = L.OPT_SOUND_HELP, y = -66 },
-    { feld = "erinnernLogin", text = L.OPT_LOGIN, hilfe = L.OPT_LOGIN_HELP, y = -87 },
-    { feld = "erinnernGruppe", text = L.OPT_GROUP, hilfe = L.OPT_GROUP_HELP, y = -108 },
-    { feld = "feuerHinweis", text = L.OPT_CAMPFIRE, hilfe = L.OPT_CAMPFIRE_HELP, y = -129 },
-    { feld = "essenErinnern", text = L.OPT_FOOD, hilfe = L.OPT_FOOD_HELP, y = -150 },
-    { feld = "allesDaMelden", text = L.OPT_ALL_SET, hilfe = L.OPT_ALL_SET_HELP, y = -171 },
-    { feld = "leisteZeigen", text = L.OPT_BAR, hilfe = L.OPT_BAR_HELP, y = -215 },
-    { feld = "nurMitBuff", text = L.OPT_BAR_ONLY, hilfe = L.OPT_BAR_ONLY_HELP, y = -236 },
-    { feld = "gesperrt", text = L.OPT_LOCK, hilfe = L.OPT_LOCK_HELP, y = -257 },
-    { feld = "minimapZeigen", text = L.OPT_MINIMAP, hilfe = L.OPT_MINIMAP_HELP, y = -278,
+    { feld = "erinnernLogin", text = L.OPT_LOGIN, hilfe = L.OPT_LOGIN_HELP, y = -66, x = H },
+    { feld = "erinnernGruppe", text = L.OPT_GROUP, hilfe = L.OPT_GROUP_HELP, y = -87 },
+    { feld = "feuerHinweis", text = L.OPT_CAMPFIRE, hilfe = L.OPT_CAMPFIRE_HELP, y = -87, x = H },
+    { feld = "essenErinnern", text = L.OPT_FOOD, hilfe = L.OPT_FOOD_HELP, y = -108 },
+    { feld = "allesDaMelden", text = L.OPT_ALL_SET, hilfe = L.OPT_ALL_SET_HELP, y = -108, x = H },
+    { feld = "leisteZeigen", text = L.OPT_BAR, hilfe = L.OPT_BAR_HELP, y = -150 },
+    { feld = "gesperrt", text = L.OPT_LOCK, hilfe = L.OPT_LOCK_HELP, y = -150, x = H },
+    { feld = "verblassen", text = L.OPT_FADE, hilfe = L.OPT_FADE_HELP, y = -196 },
+    { feld = "minimapZeigen", text = L.OPT_MINIMAP, hilfe = L.OPT_MINIMAP_HELP, y = -196, x = H,
       danach = function() ns.Minimap:Sichtbarkeit() end },
-    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -299, breite = B / 2 - 4 },
-    { feld = "checkZeigen", text = L.OPT_CHECK, hilfe = L.OPT_CHECK_HELP, y = -299, x = B / 2, breite = B / 2 },
-    { feld = "feuerZeigen", text = L.OPT_FIRE_BUTTON, hilfe = L.OPT_FIRE_BUTTON_HELP, y = -320, breite = B / 2 - 4 },
-    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -320, x = B / 2, breite = B / 2 },
-    { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -341 },
-    { feld = "karteZeigen", text = L.OPT_MAP, hilfe = L.OPT_MAP_HELP, y = -362 },
+    { feld = "kitZeigen", text = L.OPT_KIT, hilfe = L.OPT_KIT_HELP, y = -217 },
+    { feld = "vorratZeigen", text = L.OPT_SUPPLIES, hilfe = L.OPT_SUPPLIES_HELP, y = -217, x = H,
+      danach = function() ns.Kit:Aktualisieren() end },
+    { feld = "feuerZeigen", text = L.OPT_FIRE_BUTTON, hilfe = L.OPT_FIRE_BUTTON_HELP, y = -238 },
+    { feld = "checkZeigen", text = L.OPT_CHECK, hilfe = L.OPT_CHECK_HELP, y = -238, x = H },
+    { feld = "showAn", text = L.OPT_SHOW, hilfe = L.OPT_SHOW_HELP, y = -259 },
+    { feld = "murlocTon", text = L.OPT_MURLOC_SOUND, hilfe = L.OPT_MURLOC_SOUND_HELP, y = -259, x = H },
+    { feld = "karteZeigen", text = L.OPT_MAP, hilfe = L.OPT_MAP_HELP, y = -280,
+      danach = function() ns.Karte:Zeichnen(true) end },
   }
   S.ueberschrift(f, L.REMINDERS):SetPoint("TOPLEFT", 0, -50)
-  S.ueberschrift(f, L.DISPLAY):SetPoint("TOPLEFT", 0, -199)
+  S.ueberschrift(f, L.DISPLAY):SetPoint("TOPLEFT", 0, -134)
   f.schalter = {}
   for i, s in ipairs(schalter) do
-    local h = S.haken(f, s.breite or B, s.text, s.hilfe, function(_, an)
+    local h = S.haken(f, s.breite or (H - 4), s.text, s.hilfe, function(_, an)
       ns.db[s.feld] = an
       if s.danach then s.danach() end
       W:Aktualisieren()
@@ -739,9 +758,57 @@ local function bauenEinstellungen()
     f.schalter[i] = h
   end
 
+  -- Wann die Leiste zu sehen ist
+  local modus = S.schrift(f, "GameFontHighlight", F.text)
+  modus:SetPoint("TOPLEFT", 0, -175)
+  modus:SetText(L.OPT_BAR_MODE)
+  f.leisteModus = S.segmente(f, B - 130, {
+    { wert = "immer", text = L.BAR_ALWAYS, hilfe = L.BAR_ALWAYS_HELP },
+    { wert = "mitBuff", text = L.BAR_WITH_BUFF, hilfe = L.BAR_WITH_BUFF_HELP },
+    { wert = "bedarf", text = L.BAR_NEEDED, hilfe = L.BAR_NEEDED_HELP },
+  }, function(wert)
+    ns.db.leisteModus = wert
+    W:Aktualisieren()
+    ns.aktualisieren()
+  end)
+  f.leisteModus:SetPoint("TOPLEFT", 130, -171)
+
+  -- Größe der Nadeln auf der Karte
+  local nadel = S.schrift(f, "GameFontHighlight", F.text)
+  nadel:SetPoint("TOPLEFT", H, -284)
+  nadel:SetText(L.OPT_PIN_SIZE)
+  f.nadel = S.segmente(f, H - 90, {
+    { wert = 16, text = L.PIN_SMALL }, { wert = 20, text = L.PIN_NORMAL }, { wert = 26, text = L.PIN_LARGE },
+  }, function(wert)
+    ns.db.nadelGroesse = wert
+    ns.Karte:Zeichnen(true)
+  end)
+  f.nadel:SetPoint("TOPLEFT", H + 84, -280)
+
+  -- Lager ankündigen: Kanal und eigener Text
+  S.ueberschrift(f, L.ANNOUNCE_TITLE):SetPoint("TOPLEFT", 0, -312)
+  f.kanal = S.segmente(f, 200, {
+    { wert = "SAY", text = L.CHANNEL_SAY, hilfe = L.CHANNEL_SAY_HELP },
+    { wert = "GENERAL", text = L.CHANNEL_GENERAL, hilfe = L.CHANNEL_GENERAL_HELP },
+  }, function(wert) ns.db.ansageKanal = wert end)
+  f.kanal:SetPoint("TOPLEFT", 0, -330)
+  f.ansageText = S.eingabe(f, B - 216, 200, function(text)
+    ns.db.ansageText = text
+    ns.melde(text ~= "" and L.MSG_ANNOUNCE_TEXT_SET or L.MSG_ANNOUNCE_TEXT_RESET)
+  end)
+  f.ansageText:SetPoint("TOPLEFT", 214, -331)
+  S.tooltip(f.ansageText, L.ANNOUNCE_TEXT, L.ANNOUNCE_TEXT_HELP)
+  f.ansageHilfe = S.absatz(f, B, F.leise)
+  f.ansageHilfe:SetPoint("TOPLEFT", 0, -356)
+  f.ansageHilfe:SetText(L.ANNOUNCE_TEXT_HINT)
+
   function f:Aktualisieren()
     self.warnen:Setzen(ns.db.warnenMinuten)
     for _, h in ipairs(self.schalter) do h:Setzen(ns.db[h.feld]) end
+    self.leisteModus:Setzen(ns.db.leisteModus)
+    self.nadel:Setzen(ns.db.nadelGroesse)
+    self.kanal:Setzen(ns.db.ansageKanal)
+    if not (self.ansageText.HasFocus and self.ansageText:HasFocus()) then self.ansageText:SetText(ns.db.ansageText or "") end
   end
 end
 
@@ -749,6 +816,10 @@ end
 
 local function bauenHilfe()
   local f = seite("hilfe")
+  f.neu = S.textKnopf(f, L.BTN_NEWS, 110, function() ns.Neuigkeiten:Zeigen() end)
+  f.neu:SetHeight(20)
+  f.neu:SetPoint("TOPRIGHT", 0, 3)
+  S.tooltip(f.neu, L.BTN_NEWS, L.BTN_NEWS_HELP)
   local y = 0
   for _, abschnitt in ipairs({
     { L.HELP_START_TITLE, L.HELP_START },

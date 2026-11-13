@@ -3,6 +3,10 @@
 -- Ausgebrannte Feuer verschwinden von selbst, Rechtsklick entfernt eine Nadel. Die Einträge
 -- schreibt Lager.lua in ns.db.karte. Es wird nichts gesendet und nichts von anderen gelesen.
 -- Die Nadeln hängen an der Zeichenfläche der Weltkarte und behalten beim Zoomen ihre Größe.
+-- OpenMap (eine nahtlose Weltkarte, Patrick nutzt sie): OpenMap zeigt auf derselben Zeichenfläche
+-- viele Zonen auf einmal. Dann rechnet Campfire Buddy die Orte über OpenMaps Schnittstelle für
+-- andere Add-ons (OpenMapAPI, MIT) um und legt die Nadeln über OpenMaps Kartenbild. Ohne OpenMap
+-- bleibt alles wie bisher. Kein Data Provider der Weltkarte (der verursachte bei anderen Taint).
 local ADDON, ns = ...
 local L, S = ns.L, ns.Stil
 local F = S.F
@@ -10,7 +14,26 @@ local F = S.F
 local K = { nadeln = {} }
 ns.Karte = K
 
-local GROESSE = 20
+local function groesse() return (ns.db and ns.db.nadelGroesse) or 20 end
+
+-- OpenMap mit zusammengesetzter Karte offen? Dann seine Schnittstelle, sonst nil
+local function openMap()
+  local api = OpenMapAPI
+  if type(api) ~= "table" or not (api.IsStitched and api.WorldFromMap and api.MapFromWorld) then return nil end
+  local ok, an = pcall(api.IsStitched)
+  if ok and an then return api end
+end
+K.OpenMap = openMap
+
+-- Ort eines Eintrags auf OpenMaps zusammengesetzter Karte, in den Maßen der Karte darunter (darf
+-- über 0 bis 1 hinausgehen: OpenMap zeigt über ihren Rand hinaus)
+local function aufOpenMap(api, e, karte)
+  local ok, u, v = pcall(api.WorldFromMap, e.karte, e.x, e.y)
+  if not ok or type(u) ~= "number" or type(v) ~= "number" then return nil end
+  local ok2, x, y = pcall(api.MapFromWorld, karte, u, v)
+  if not ok2 or type(x) ~= "number" or type(y) ~= "number" or x < -3 or x > 4 or y < -3 or y > 4 then return nil end
+  return x, y
+end
 
 local nachZauber
 local function objekt(spell)
@@ -75,7 +98,7 @@ end
 
 local function neueNadel(flaeche)
   local b = CreateFrame("Button", nil, flaeche)
-  b:SetSize(GROESSE, GROESSE)
+  b:SetSize(groesse(), groesse())
   b:RegisterForClicks("RightButtonUp")
   b.icon = b:CreateTexture(nil, "ARTWORK")
   b.icon:SetAllPoints()
@@ -107,20 +130,29 @@ function K:Zeichnen(sofort)
     if ok3 and type(s) == "number" and s > 0 then skala = s end
   end
   local jetzt = ns.jetzt()
-  if not sofort and karte == self.karte and skala == self.skala and jetzt - (self.zuletzt or 0) < 1 then return end
-  self.karte, self.skala, self.zuletzt = karte, skala, jetzt
+  local om = openMap()
+  if not sofort and karte == self.karte and skala == self.skala and (om ~= nil) == self.openMap and jetzt - (self.zuletzt or 0) < 1 then return end
+  self.karte, self.skala, self.zuletzt, self.openMap = karte, skala, jetzt, om ~= nil
 
   local eintraege = (ns.db and ns.db.karteZeigen) and ns.Lager:KartenEintraege() or {}
   local breite, hoehe = flaeche:GetWidth() or 0, flaeche:GetHeight() or 0
+  local ebene = (flaeche:GetFrameLevel() or 1) + 900
+  if om and om.ArtTopLevel then
+    local ok, oben = pcall(om.ArtTopLevel)
+    if ok and type(oben) == "number" then ebene = math.max(ebene, oben + 10) end
+  end
   local n = 0
   for _, e in ipairs(eintraege) do
-    local x, y = aufKarte(e, karte)
+    local x, y
+    if om then x, y = aufOpenMap(om, e, karte) end
+    if not x then x, y = aufKarte(e, karte) end
     if x then
       n = n + 1
       local b = self.nadeln[n] or neueNadel(flaeche)
       self.nadeln[n] = b
       b.eintrag = e
-      b:SetFrameLevel((flaeche:GetFrameLevel() or 1) + 900)
+      b:SetSize(groesse(), groesse())
+      b:SetFrameLevel(ebene)
       b:SetScale(1 / skala)
       b:ClearAllPoints()
       b:SetPoint("CENTER", flaeche, "TOPLEFT", x * breite * skala, -y * hoehe * skala)
@@ -146,4 +178,21 @@ local function anhaengen()
 end
 
 ns.beimStart(anhaengen)
+
+-- OpenMap: neu zeichnen, wenn sich die Ansicht bewegt, und ein Schalter in OpenMaps Menü
+ns.beimStart(function()
+  local api = OpenMapAPI
+  if type(api) ~= "table" then return end
+  if api.RegisterCallback then
+    pcall(api.RegisterCallback, K, "OpenMap_ViewChanged", function() K:Zeichnen(true) end)
+    pcall(api.RegisterCallback, K, "OpenMap_StitchedChanged", function() K:Zeichnen(true) end)
+  end
+  if api.RegisterMenuToggle then
+    pcall(api.RegisterMenuToggle, "CampfireBuddy", {
+      id = "camps", label = L.MAP_TOGGLE, icon = S.SYMBOL,
+      get = function() return ns.db and ns.db.karteZeigen end,
+      set = function(an) if ns.db then ns.db.karteZeigen = an and true or false K:Zeichnen(true) end end,
+    })
+  end
+end)
 ns.ereignis("ADDON_LOADED", function(name) if name == "Blizzard_WorldMap" then anhaengen() end end)

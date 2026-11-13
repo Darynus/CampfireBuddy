@@ -1,5 +1,17 @@
 # Campfire Buddy changelog
 
+## 1.2.0 (2026-11-13)
+
+- **Supplies in the Camp Kit**: at a campfire the Camp Kit gets a second row with weapon buffs for your main hand and off hand (sharpening stones, weightstones, oils, poisons) and their time left, your Cozy Sleeping Bag and three free slots for food, drinks or potions. One click uses it, and a weapon without a buff makes its slot glow. Drag an item onto a slot to choose it, right-click to clear it.
+- **Key bindings** for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns > Campfire Buddy.
+- **Announce your camp**: one click on the horn in the Camp Kit tells others in Say or General, with a map pin and your own text if you like. Right-click shares the camp with your group, and group members with Campfire Buddy see it on their map. Only when you click, never during a boss fight, and no hidden chat channels.
+- **Rested XP at the fire**: the bar shows your rested XP, how much you gain per hour while you sit there, and when it is full.
+- **Show the bar only when needed**: at a campfire, or when a camp buff or your food is missing or about to run out. Or let it fade until you point at it.
+- **Map**: campfire pins come in three sizes and show on OpenMap's stitched world map too, with a switch in OpenMap's menu.
+- The sleeping bag buff **Well-Rested** is tracked in the bar.
+- Square minimaps: the minimap button follows the square edge.
+- **What's new** window once after each update. `/campfire news` shows it again.
+
 ## 1.1.3 (2026-11-06)
 
 - **Fix**: your food buff is recognized by its spell ID now. Cooked food with the experience bonus counts right away, in every game language, and the "No food buff" row stays away while you are Well Fed. Before, cooked food was often taken for a snack without the bonus and the row kept glowing.
