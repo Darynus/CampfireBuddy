@@ -33,6 +33,7 @@ local RAND_GRAU = { 0.38, 0.38, 0.42, 1 }
 local GEWICHT = { [0] = 0.15, [1] = 0.5, [2] = 1 }
 local BALD = 10 * 60   -- Camp Benefits unter 10 Minuten: Hinsetzen lohnt schon wegen der Zeit
 local FRISCH = 90      -- Sekunden: so lange gilt ein Objekt nach dem letzten Bestätigen als sicher da
+local SITZEN = 75      -- Sekunden: Hinsetzen dauert eine Minute. Brennt das Feuer kürzer, bringt es nichts.
 
 local function imKampf() return InCombatLockdown and InCombatLockdown() end
 
@@ -126,13 +127,17 @@ function C:Rechnen()
     elseif gut == "lohnt" then r.urteil = "pruefen"
     else r.urteil = schlecht == "nicht" and "nicht" or gut end
   end
+  -- Geht das Feuer aus, bevor die Sitz-Minute um ist, bringt Hinsetzen nichts (Patrick, 13. Nov:
+  -- "You get +6 Strength", und gerade ging das Feuer aus)
+  r.feuerRest, r.feuerGenau = LG:FeuerRest()
+  if r.feuerRest and r.feuerRest < SITZEN and r.urteil ~= "gleich" and r.urteil ~= "nicht" then r.urteil = "aus" end
   return r
 end
 
 local URTEIL = {
   ohne = { "CHECK_NO_BENEFITS", "erfolg" }, bald = { "CHECK_SOON", "erfolg" }, lohnt = { "CHECK_WORTH", "erfolg" },
   zeit = { "CHECK_TIME_ONLY", "hinweis" }, gleich = { "CHECK_SAME", "leise" }, nicht = { "CHECK_NOT", "fehler" },
-  pruefen = { "CHECK_CHECK", "hinweis" },
+  pruefen = { "CHECK_CHECK", "hinweis" }, aus = { "CHECK_FIRE_OUT", "hinweis" },
 }
 
 -- Eine Zeile für "Du bekommst" oder "Du verlierst": Symbol, Wert für dein Level, Zusatz
@@ -289,6 +294,16 @@ function C:Aktualisieren()
     table.insert(zeilen, farbe(F.leise, L.CHECK_NOTHING_KNOWN))
   end
   table.insert(zeilen, " ")
+  -- Zeit des Feuers und Zeit der eigenen Camp Benefits getrennt (Patrick, 13. Nov)
+  if LG.weltfeuer then
+    table.insert(zeilen, farbe(F.leise, L.CHECK_FIRE_ALWAYS))
+  elseif r.feuerRest then
+    local text
+    if r.feuerRest < 60 then text = L.CHECK_FIRE_SOON
+    elseif r.feuerGenau then text = string.format(L.CHECK_FIRE, math.floor(r.feuerRest / 60 + 0.5))
+    else text = string.format(L.CHECK_FIRE_MAX, math.ceil(r.feuerRest / 60)) end
+    table.insert(zeilen, farbe(r.feuerRest < SITZEN and F.hinweis or F.leise, text))
+  end
   if r.rest then
     table.insert(zeilen, farbe(F.leise, string.format(L.CHECK_TIME, math.floor(r.rest / 60 + 0.5))))
   else

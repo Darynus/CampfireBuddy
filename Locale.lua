@@ -138,6 +138,7 @@ L.MAP_PLACED_BY = "Placed by: |cffffd100%s|r"
 L.MAP_SLOTS = "%d of %d slots used"
 L.MAP_OBJECTS = "%d objects"
 L.MAP_REMAINING = "|cffffd100%d Min %d Sec|r remaining"
+L.MAP_REMAINING_MAX = "At most |cffffd100%d Min %d Sec|r remaining"
 L.MAP_ALWAYS = "Always burning"
 L.MAP_ROUGH = "Spot is approximate, you did not sit at this fire."
 L.MAP_REMOVE = "Right-click: remove"
@@ -301,8 +302,13 @@ L.CHECK_STRONGER = "(stronger than yours)"
 L.CHECK_WEAKER = "(weaker here)"
 L.CHECK_LITTLE_USE = "(little use for you)"
 L.CHECK_NOTHING_KNOWN = "No camp object known at this fire yet."
-L.CHECK_TIME = "Your Camp Benefits: %d min left"
+L.CHECK_TIME = "Your Camp Benefits buff: %d min left"
 L.CHECK_TIME_NONE = "You have no Camp Benefits right now."
+L.CHECK_FIRE = "Fire: about %d min left"
+L.CHECK_FIRE_MAX = "Fire: %d min left at most (it was burning when you came)"
+L.CHECK_FIRE_SOON = "Fire: less than 1 min left"
+L.CHECK_FIRE_ALWAYS = "Fire: always burning"
+L.CHECK_FIRE_OUT = "The fire is about to go out"
 L.CHECK_HOVER = "%d slots unknown: empty, or hover over the objects at the fire."
 L.CHECK_HOVER_ONE = "1 slot unknown: empty, or hover over the objects at the fire."
 L.CHECK_HOVER_ALL = "Hover over the objects at the fire to check them."
@@ -749,6 +755,7 @@ L.ANNOUNCE_TEXT_HINT = "Your own text, empty for the default. Placeholders: %fir
 L.ANNOUNCE_DEFAULT = "%fire% with %objects%, %time% left. Come sit with us! %pin%"
 L.ANNOUNCE_NO_OBJECTS = "no camp objects yet"
 L.ANNOUNCE_TIME_UNKNOWN = "some time"
+L.ANNOUNCE_TIME_MAX = "up to %d min"
 L.ANNOUNCE_COMBAT = "Not in combat."
 L.ANNOUNCE_NO_CAMP = "Stand at a campfire first."
 L.ANNOUNCE_WAIT = "Please wait a few seconds."
@@ -787,6 +794,7 @@ L.NEWS = {
     "Key bindings for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns.",
     "Announce: one click tells others about your camp in chat, with a map pin and your own text. Right-click shares the camp with your group, they see it on their map.",
     "Rested XP at the fire: how much you gain per hour and when it is full. A message tells you the moment it is full.",
+    "Camp check: how long the fire still burns, and a warning when it is about to go out, so you do not sit down for nothing.",
     "The bar can show only when needed, and fade until you point at it. Pins on the map have three sizes and show on OpenMap too.",
     "The sleeping bag buff Well-Rested is tracked, square minimaps work, and this window tells you what is new after each update.",
   } },

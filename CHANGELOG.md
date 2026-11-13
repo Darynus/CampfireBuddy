@@ -6,6 +6,7 @@
 - **Key bindings** for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns > Campfire Buddy.
 - **Announce your camp**: one click on the horn in the Camp Kit tells others in Say or General, with a map pin and your own text if you like. Right-click shares the camp with your group, and group members with Campfire Buddy see it on their map. Only when you click, never during a boss fight, and no hidden chat channels.
 - **Fix**: arriving at another campfire soon after leaving one now starts a new camp. Before, the objects of the last fire stayed in the list.
+- **Fix**: the camp check shows how long the fire still burns, on its own line apart from the time of your Camp Benefits, and tells you when the fire is about to go out instead of asking you to sit down. If you did not see the fire being lit, it says how long it burns at most, and so do the map pin and your announcement.
 - **Rested XP at the fire**: the bar shows your rested XP, how much you gain per hour while you sit there, and when it is full. The moment it is full, a message on screen and in your chat tells you it is time to move on.
 - **Show the bar only when needed**: at a campfire, or when a camp buff or your food is missing or about to run out. Or let it fade until you point at it.
 - **Map**: campfire pins come in three sizes and show on OpenMap's stitched world map too, with a switch in OpenMap's menu.

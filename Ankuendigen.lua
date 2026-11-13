@@ -44,7 +44,7 @@ local function lager()
   local rest
   local e = LG.kartenNr and ns.db.karte and ns.db.karte[LG.kartenNr]
   if e and e.ende then rest = math.max(0, e.ende - LG.Zeit()) end
-  return feuer, namen, rest
+  return feuer, namen, rest, e and e.hoechstens
 end
 
 -- Kartennadel des Spiels für die Stelle des Chars. Der eigene Wegpunkt des Spielers wird danach
@@ -67,13 +67,15 @@ end
 -- %fire%, %objects%, %time%, %pin%. Ohne %pin% kommt die Nadel ans Ende. Höchstens 255 Zeichen,
 -- gekürzt wird vor der Nadel, damit der Link ganz bleibt.
 function A.Text()
-  local feuer, namen, rest = lager()
+  local feuer, namen, rest, hoechstens = lager()
   local vorlage = ns.db.ansageText
   if type(vorlage) ~= "string" or vorlage == "" then vorlage = L.ANNOUNCE_DEFAULT end
   local werte = {
     fire = feuer,
     objects = #namen > 0 and table.concat(namen, ", ") or L.ANNOUNCE_NO_OBJECTS,
-    time = rest and string.format(L.MINUTES, math.max(1, math.floor(rest / 60 + 0.5))) or L.ANNOUNCE_TIME_UNKNOWN,
+    -- Anzünden nicht gesehen: nur "up to" (es brannte schon, als man kam)
+    time = rest and (hoechstens and string.format(L.ANNOUNCE_TIME_MAX, math.max(1, math.ceil(rest / 60)))
+      or string.format(L.MINUTES, math.max(1, math.floor(rest / 60 + 0.5)))) or L.ANNOUNCE_TIME_UNKNOWN,
   }
   local link = nadel() or ""
   local mitNadel = string.find(vorlage, "%pin%", 1, true) ~= nil

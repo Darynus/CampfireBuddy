@@ -111,7 +111,7 @@ function LG:Neu()
   self.tipp = nil
   self.gelesen = nil
   self.kartenNr, self.feuerZeit, self.weltfeuer = nil, nil, nil
-  self.feuerAus = nil
+  self.feuerAus, self.feuerGesehen = nil, nil
 end
 
 -- Karte ---------------------------------------------------------------------------------------
@@ -185,9 +185,12 @@ local function karteFuellen(self)
   e.objekte = {}
   for _, o in pairs(self.objekte) do table.insert(e.objekte, o.o.spell) end
   if self.weltfeuer then
-    e.welt, e.ende = true, nil
+    e.welt, e.ende, e.hoechstens = true, nil, nil
   else
+    -- Anzünden nicht gesehen: Das Feuer brannte schon, als man kam, die Zeit gilt nur als höchstens
+    -- (Karte "At most", Ankündigen "up to")
     local start = self.feuerZeit or e.seit
+    e.hoechstens = not self.feuerZeit or nil
     e.ende = math.max(start + FEUER_BRENNT, self.aktiv and serverZeit() + 60 or 0, e.ende or 0)
   end
 end
@@ -260,6 +263,9 @@ local function wiederholen(self, ersteAnkunft)
   if m.feuer and nachZauber[m.feuer] then
     self.feuer = { o = nachZauber[m.feuer], quelle = m.feuerQuelle or "cast", zeit = m.feuerSeit or m.zeit }
   end
+  -- Für die Restzeit des Feuers: wann es angezündet (gesehen) und wann es zuerst brennend gesehen wurde
+  if type(m.feuerZeit) == "number" then self.feuerZeit = m.feuerZeit end
+  if type(m.feuerGesehen) == "number" then self.feuerGesehen = m.feuerGesehen end
   for _, e in ipairs(m.objekte or {}) do
     local o = type(e) == "table" and nachZauber[e.spell]
     -- Maus-Funde bei mehrdeutigen Objekten ohne Lager-Zeilen zählen nicht (siehe oben), auch
@@ -279,6 +285,7 @@ local function speichern(self)
   local hier = position() or {}
   ns.db.lager = { zeit = serverZeit(), feuer = self.feuer and self.feuer.o.spell,
     feuerQuelle = self.feuer and self.feuer.quelle, feuerSeit = self.feuer and self.feuer.zeit,
+    feuerZeit = self.feuerZeit, feuerGesehen = self.feuerGesehen,
     objekte = liste, x = hier.x, y = hier.y, karte = hier.karte }
   karteFuellen(self)
 end
@@ -295,6 +302,8 @@ function LG:Ankunft()
     self:Neu()
     self.ort = hier
     wiederholen(self, not self.schonDa)
+    -- Das Feuer brennt schon: ab jetzt höchstens noch eine ganze Feuerdauer (LG:FeuerRest)
+    self.feuerGesehen = self.feuerGesehen or serverZeit()
     self.aktiv = true
     self:OrtMerken(false)
     -- Ab jetzt gehört der gemerkte Stand zu diesem Lager (auch wenn es leer ist)
@@ -304,7 +313,9 @@ function LG:Ankunft()
     -- Journeyman stand wieder ein Basic da). Die Objekte bleiben, die Größe ist wieder offen, bis
     -- die Maus auf dem Feuer war oder das Aufstellen gesehen wurde. Eigene Nadel auf der Karte.
     self.feuer, self.kartenNr = nil, nil
-    self.feuerZeit = serverZeit()
+    -- Wann genau es angezündet wurde, ist offen (in den letzten anderthalb Minuten, das Anzünden
+    -- selbst kommt unten über letztesFeuer). Sicher ist nur: höchstens eine ganze Feuerdauer.
+    self.feuerZeit, self.feuerGesehen = nil, serverZeit()
     self:OrtMerken(false)
     speichern(self)
   end
@@ -381,6 +392,25 @@ function LG:FeuerSetzen(o, quelle, wer)
   platzMachen(self, nil, true)
   speichern(self)
   self:Geaendert()
+end
+
+-- Wie lange brennt das Feuer hier noch? Feuer brennen FEUER_DAUER. Genau, wenn das Anzünden gesehen
+-- wurde (eigenes Feuer, Gruppe, Fremde in Sichtweite oder kurz vor der Ankunft), sonst nur höchstens:
+-- Es brannte schon, als man es zum ersten Mal sah (Patrick, 13. Nov: der Check bot den Schleifstein
+-- an, und gerade ging das Feuer aus; die Zeit der Camp Benefits hielt er für die des Feuers).
+-- Rückgabe: Sekunden und genau (true) oder höchstens (false). nil weg vom Feuer und bei Feuern der
+-- Welt, die immer brennen. NACHLAUF: so lange darf "Campfire Nearby" nach dem Ende noch da sein.
+local NACHLAUF = 30
+function LG:FeuerRest()
+  if not self.aktiv or self.weltfeuer then return nil end
+  local jetzt = serverZeit()
+  if self.feuerZeit and self.feuerZeit + FEUER_DAUER + NACHLAUF > jetzt then
+    return math.max(0, self.feuerZeit + FEUER_DAUER - jetzt), true
+  end
+  -- Zeit um, aber "Campfire Nearby" ist noch da: Das Feuer ist jünger als gedacht (jemand hat ein
+  -- neues angezündet, ohne dass wir es sahen). Dann gilt ab jetzt wieder höchstens ein ganzes Feuer.
+  if not self.feuerGesehen or self.feuerGesehen + FEUER_DAUER + NACHLAUF <= jetzt then self.feuerGesehen = jetzt end
+  return math.max(0, self.feuerGesehen + FEUER_DAUER - jetzt), false
 end
 
 -- Objekte verschwinden nach einiger Zeit (Patrick, 18. Okt: Fish Bowl nach wenigen Minuten weg,

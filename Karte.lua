@@ -73,7 +73,9 @@ local function tooltip(nadel)
     GameTooltip:AddLine(L.MAP_ALWAYS, F.erfolg[1], F.erfolg[2], F.erfolg[3])
   elseif e.ende then
     local rest = math.max(0, e.ende - serverZeit())
-    GameTooltip:AddLine(string.format(L.MAP_REMAINING, math.floor(rest / 60), math.floor(rest % 60)), 1, 1, 1)
+    -- Anzünden nicht gesehen: höchstens (es brannte schon, als man kam)
+    GameTooltip:AddLine(string.format(e.hoechstens and L.MAP_REMAINING_MAX or L.MAP_REMAINING,
+      math.floor(rest / 60), math.floor(rest % 60)), 1, 1, 1)
   end
   if e.wer then GameTooltip:AddLine(string.format(L.MAP_PLACED_BY, e.wer), 1, 1, 1) end
   local anzahl = #(e.objekte or {})
