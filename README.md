@@ -20,7 +20,7 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 - **Supplies in the Camp Kit**: weapon buffs for both hands with their time left, your sleeping bag and three slots for food, drinks or potions. One click each, a glow when a weapon has no buff.
 - **Key bindings** for every Camp Kit button, the campfire button and the supplies.
 - **Announce your camp** in Say or General with a map pin, or share it with your group so they see it on their map.
-- **Rested XP at the fire**: how much you gain per hour and when it is full.
+- **Rested XP at the fire**: how much you gain per hour and when it is full, with a message the moment it is.
 - **Show the bar only when needed**, or let it fade until you point at it. Campfire pins in three sizes, also on OpenMap.
 
 ## Ten campfire games

@@ -770,6 +770,7 @@ L.RESTED_MEASURING = "measuring..."
 L.RESTED_NOT_RISING = "not rising here"
 L.RESTED_RATE = "+%.1f %% per hour"
 L.RESTED_FULL_IN = "full in %s"
+L.MSG_RESTED_FULL = "Rested XP is full. Time to move on!"
 
 -- Neuigkeiten nach einem Update (Neuigkeiten.lua), neueste Version zuerst
 L.BTN_NEWS = "What's new"
@@ -784,7 +785,7 @@ L.NEWS = {
     "Supplies in the Camp Kit: weapon buffs for both hands with their time left (a glow tells you when a weapon has none), your sleeping bag and three slots for food, drinks or potions. Drag an item onto a slot to choose it.",
     "Key bindings for every Camp Kit button, the campfire button and the supplies: Esc > Options > Keybindings > AddOns.",
     "Announce: one click tells others about your camp in chat, with a map pin and your own text. Right-click shares the camp with your group, they see it on their map.",
-    "Rested XP at the fire: how much you gain per hour and when it is full.",
+    "Rested XP at the fire: how much you gain per hour and when it is full. A message tells you the moment it is full.",
     "The bar can show only when needed, and fade until you point at it. Pins on the map have three sizes and show on OpenMap too.",
     "The sleeping bag buff Well-Rested is tracked, square minimaps work, and this window tells you what is new after each update.",
   } },

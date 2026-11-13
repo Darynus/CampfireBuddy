@@ -45,10 +45,16 @@ function R:Pruefen()
   end
   local stufe = UnitLevel and UnitLevel("player")
   local m = self.messung
+  local vorher = self.prozent
   if not m or prozent < (self.prozent or prozent) or stufe ~= m.stufe then
     self.messung = { zeit = ns.jetzt(), prozent = prozent, stufe = stufe }
   end
   self.prozent = prozent
+  -- Am Feuer voll geworden: einmal Bescheid sagen, auf dem Bildschirm, im Chat und mit Ton
+  -- (Vorschlag vom 13. Nov). Wer schon voll ankommt, bekommt keine Meldung.
+  if vorher and vorher < R.VOLL - 0.05 and prozent >= R.VOLL - 0.05 then
+    ns.hinweis(ns.L.MSG_RESTED_FULL)
+  end
 end
 
 -- Prozent einer Stufe pro Stunde (nil: noch zu kurz gemessen)
