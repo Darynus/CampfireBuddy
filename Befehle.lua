@@ -66,6 +66,13 @@ ns.befehl("debug", L.CMD_DEBUG, function()
   local mahl = essen or ohneXp
   ns.melde(string.format("Food: %s, spell %s, XP bonus %s", mahl and tostring(mahl.name) or "none",
     tostring(mahl and mahl.id), tostring(essen ~= nil)))
+  -- Waffenbuffs: je Hand Kennung, Name, Restzeit, Ladungen, verfolgt
+  for _, platz in ipairs(ns.Waffen.HAENDE) do
+    local a = ns.Waffen.aktiv[platz]
+    local r = a and ns.Buffs.Rest(a)
+    ns.melde(string.format("Weapon %d: %s, enchant %s, %s left, %s charges, tracked %s", platz, a and tostring(a.name) or "none",
+      tostring(a and a.enchant), r and ns.dauerText(r) or "-", tostring(a and a.ladungen), tostring(ns.Waffen.Verfolgt(platz))))
+  end
   -- Minikarten-Knopf: Name, Winkel und Ebenen von Knopf und Minikarte
   local b = ns.Minimap.knopf
   local okS, strata = pcall(Minimap.GetFrameStrata, Minimap)

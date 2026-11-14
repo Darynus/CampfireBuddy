@@ -47,6 +47,8 @@ local STANDARD = {
   vorrat = {},           -- ["Name-Realm"] = { haupt, neben, [1], [2], [3] } Gegenstands-IDs
   karte = {},            -- [Nummer] = Lager mit Ort, siehe Lager.lua
   eigeneBuffs = {},      -- [Zauber-ID] = Name, zusätzlich verfolgte Buffs
+  waffenVerfolgt = {},   -- ["Name-Realm"] = { [16] = true, [17] = true }: verfolgte Waffenbuffs je Hand (Waffenbuffs.lua)
+  waffenDauer = {},      -- [enchantID] = längste gesehene Restzeit in Sekunden, die volle Dauer für den Balken
   kitZeigen = true,      -- Camp Kit am Lagerfeuer zeigen
   feuerZeigen = true,    -- eigener Knopf fürs Lagerfeuer abseits des Feuers (Kit.lua)
   checkZeigen = true,    -- Lager-Check am linken Rand (LagerCheck.lua)
@@ -149,6 +151,12 @@ function ns.dauerText(sekunden)
 end
 
 function ns.jetzt() return GetTime and GetTime() or time() end
+
+-- Schlüssel des Chars für Einstellungen je Char: "Name-Realm" (Lagerkiste, Waffenbuffs)
+function ns.charSchluessel()
+  local name = UnitName and UnitName("player") or "?"
+  return name .. "-" .. ((GetRealmName and GetRealmName()) or "?")
+end
 
 -- Ereignisse ------------------------------------------------------------------------
 

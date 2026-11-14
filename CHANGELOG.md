@@ -1,5 +1,12 @@
 # Campfire Buddy changelog
 
+## 1.3.0 (2026-11-14)
+
+- **Track your weapon buffs**: poisons, Windfury, sharpening stones, weightstones and oils. They show up under *Your Buffs Right Now* in the Buffs tab, one row per hand. Click *Track*, and the bar shows the weapon buff with the time left and its charges, wherever you are.
+- The same **reminder** as for your other buffs comes before a tracked weapon buff runs out, and a chat line when it is gone, also when a poison runs out of charges. Short buffs like Windfury Totem stay quiet.
+- **No weapon buff**: the bar tells you when a tracked weapon has none, and so do the messages at login and when you join a group. A fishing pole without a lure is fine.
+- Tracking is **per character**: your rogue gets reminded, your warrior stays quiet. The name of the buff comes from your game, in your language.
+
 ## 1.2.1 (2026-11-13)
 
 - **Fix**: a Tanning Rack, Anvil, Spinning Wheel or Loom you point at now shows in the camp check, with a question mark: villages have them too, and their tooltip looks the same. Click its slot if it stands at your fire, and it counts right away. Sitting down still confirms it by itself.

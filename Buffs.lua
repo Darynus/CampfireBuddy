@@ -290,7 +290,8 @@ function B:EssenOhneXp()
 end
 
 -- Aktive Buffs für Leiste und Fenster: Camp Benefits zuerst, dann was zuerst abläuft.
--- Der Essens-Buff ist dabei, auch wenn er nicht eigens verfolgt wird.
+-- Der Essens-Buff ist dabei, auch wenn er nicht eigens verfolgt wird, dazu die verfolgten
+-- Waffenbuffs (Waffenbuffs.lua, ihre id ist "waffe16" oder "waffe17").
 function B:Liste()
   local l = {}
   for _, a in pairs(self.aktiv) do
@@ -298,11 +299,15 @@ function B:Liste()
   end
   local essen = self:Essen()
   if essen and not self.aktiv[essen.id] then table.insert(l, essen) end
+  if ns.Waffen then
+    for _, a in ipairs(ns.Waffen:Liste()) do table.insert(l, a) end
+  end
   table.sort(l, function(x, y)
     if (x.id == ns.CAMP_BENEFITS) ~= (y.id == ns.CAMP_BENEFITS) then return x.id == ns.CAMP_BENEFITS end
     local rx, ry = B.Rest(x) or 1e9, B.Rest(y) or 1e9
     if rx ~= ry then return rx < ry end
-    return x.id < y.id
+    if type(x.id) == type(y.id) then return x.id < y.id end
+    return tostring(x.id) < tostring(y.id)
   end)
   return l
 end

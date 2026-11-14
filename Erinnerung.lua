@@ -1,6 +1,6 @@
 -- Erinnerungen: kurz vor Ablauf (einmal pro Buff), beim Ablauf, beim Login und beim Gruppenbeitritt
--- ohne Lager- oder Essens-Buff, und wenn man an ein Lagerfeuer kommt. Nur Anzeige und Ton, nichts geschieht
--- von selbst.
+-- ohne Lager-, Essens- oder verfolgten Waffenbuff, und wenn man an ein Lagerfeuer kommt. Nur Anzeige
+-- und Ton, nichts geschieht von selbst.
 local ADDON, ns = ...
 local L = ns.L
 
@@ -48,6 +48,10 @@ function E:Pruefen()
   local essen = ns.Buffs.essen
   for _, a in pairs(ns.Buffs.aktiv) do pruefen[a] = essen ~= nil and a.id == essen.id end
   if essen and not ns.Buffs.aktiv[essen.id] then pruefen[essen] = true end
+  -- Verfolgte Waffenbuffs: Warnung und Ablauf wie bei den anderen Buffs (Waffenbuffs.lua)
+  if ns.Waffen then
+    for _, a in ipairs(ns.Waffen:ZuPruefen()) do pruefen[a] = false end
+  end
   for a, istEssen in pairs(pruefen) do
     local rest = ns.Buffs.Rest(a)
     if rest then
@@ -120,13 +124,24 @@ takt:SetScript("OnUpdate", function(_, dt)
   E:Pruefen()
 end)
 
+-- Was fehlt, für die Hinweise beim Login und Gruppenbeitritt: Lager, Essen, verfolgte Waffenbuffs.
+-- "All set!" bleibt bei Lager und Essen (Vollstaendig), so wie es der Text sagt.
+local function fehltAlles()
+  local t = ns.Buffs:Fehlt()
+  if ns.Waffen then
+    ns.Waffen:Lesen()
+    for _, x in ipairs(ns.Waffen:FehltText()) do table.insert(t, x) end
+  end
+  return t
+end
+
 -- Login: ein paar Sekunden warten, bis die Buffs da sind, dann einmal im Chat
 ns.ereignis("PLAYER_ENTERING_WORLD", function(erstesMal)
   if not erstesMal or not (C_Timer and C_Timer.After) then return end
   C_Timer.After(5, function()
     if not ns.db.erinnernLogin then return end
     if not ns.Buffs:Lesen() then return end
-    local fehlt = ns.Buffs:Fehlt()
+    local fehlt = fehltAlles()
     if #fehlt > 0 then ns.melde(string.format(L.MSG_MISSING_LOGIN, table.concat(fehlt, ", "))) end
   end)
 end)
@@ -138,7 +153,7 @@ ns.ereignis("GROUP_ROSTER_UPDATE", function()
   local neu = jetzt and not E.inGruppe
   E.inGruppe = jetzt
   if neu and ns.db.erinnernGruppe and ns.Buffs.gelesen then
-    local fehlt = ns.Buffs:Fehlt()
+    local fehlt = fehltAlles()
     if #fehlt > 0 then ns.melde(string.format(L.MSG_MISSING_GROUP, table.concat(fehlt, ", "))) end
   end
 end)

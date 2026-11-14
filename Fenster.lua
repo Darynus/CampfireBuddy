@@ -146,8 +146,14 @@ local function bauenStatus()
     for _, a in ipairs(ns.Buffs:Liste()) do
       if a.id ~= ns.CAMP_BENEFITS and not (essen and a.id == essen.id) then
         local r = ns.Buffs.Rest(a)
-        table.insert(zeilen, (a.name or string.format(L.SPELL_ID, a.id)) .. "   |cff8e9db8" .. (r and ns.dauerText(r) or L.NO_TIMER) .. "|r")
+        local ladungen = (a.ladungen or 0) > 1 and (", " .. string.format(L.WEAPON_CHARGES, a.ladungen)) or ""
+        table.insert(zeilen, (a.name or string.format(L.SPELL_ID, a.id)) .. "   |cff8e9db8" .. (r and ns.dauerText(r) or L.NO_TIMER)
+          .. ladungen .. "|r")
       end
+    end
+    -- Verfolgte Waffenbuffs, die fehlen
+    for _, platz in ipairs(ns.Waffen:Fehlt()) do
+      table.insert(zeilen, "|cfff5c452" .. string.format(L.STATUS_WEAPON_MISSING, ns.Waffen.Hand(platz)) .. "|r")
     end
     self.andere:SetText(#zeilen > 0 and table.concat(zeilen, "\n") or L.NONE_ACTIVE)
   end
@@ -173,8 +179,14 @@ local function buffZeile(liste, breite, verfolgt)
   z.knopf = S.textKnopf(z, "", 70, function(k)
     local e = k:GetParent().eintrag
     if not e then return end
-    local an = ns.Buffs:Umschalten(e.id, e.name)
-    if an ~= nil then ns.melde(string.format(an and L.MSG_TRACKED or L.MSG_UNTRACKED, e.name or e.id)) end
+    if e.waffe then
+      -- Waffenbuffs: je Char und Hand, egal welches Gift oder welcher Stein gerade drauf ist
+      local an = ns.Waffen:Umschalten(e.waffe)
+      ns.melde(string.format(an and L.MSG_WEAPON_TRACKED or L.MSG_WEAPON_UNTRACKED, ns.Waffen.Hand(e.waffe)))
+    else
+      local an = ns.Buffs:Umschalten(e.id, e.name)
+      if an ~= nil then ns.melde(string.format(an and L.MSG_TRACKED or L.MSG_UNTRACKED, e.name or e.id)) end
+    end
     W:Aktualisieren()
   end)
   z.knopf:SetPoint("RIGHT", -8, 0)
@@ -189,6 +201,17 @@ local function buffZeile(liste, breite, verfolgt)
 end
 
 local function buffFuellen(z, e)
+  -- Waffenbuff: statt der Zauber-ID steht die Hand da
+  if e.waffe then
+    z.icon:SetTexture(e.icon or S.LAGER)
+    z.name:SetText(e.name)
+    z.id:SetText(ns.Waffen.Hand(e.waffe))
+    z.fest:SetShown(false)
+    z.knopf:SetShown(true)
+    z.knopf.text:SetText(ns.Waffen.Verfolgt(e.waffe) and L.BTN_UNTRACK or L.BTN_TRACK)
+    z.essenFest:SetShown(false)
+    return
+  end
   z.icon:SetTexture(e.icon or S.LAGER)
   z.name:SetText(e.name or string.format(L.SPELL_ID, e.id))
   z.id:SetText(string.format(L.SPELL_ID, e.id))
@@ -229,6 +252,16 @@ local function bauenBuffs()
       local a = ns.Buffs.aktiv[id]
       table.insert(verfolgt, { id = id, name = a and a.name or name, icon = a and a.icon })
     end
+    -- Verfolgte Hände dieses Chars, auch wenn gerade kein Waffenbuff drauf ist
+    local Wf = ns.Waffen
+    for _, platz in ipairs(Wf.HAENDE) do
+      if Wf.Verfolgt(platz) then
+        local a = Wf.aktiv[platz]
+        local da = a and not a.weg
+        table.insert(verfolgt, { waffe = platz, id = "waffe" .. platz, name = da and a.name or L.NO_WEAPON_BUFF,
+          icon = da and a.icon or Wf.Symbol(platz) })
+      end
+    end
     table.sort(verfolgt, function(a, b)
       if (a.id == ns.CAMP_BENEFITS) ~= (b.id == ns.CAMP_BENEFITS) then return a.id == ns.CAMP_BENEFITS end
       return tostring(a.name) < tostring(b.name)
@@ -238,6 +271,11 @@ local function bauenBuffs()
     -- Nur Buffs mit Ablaufzeit: Aufspüren (Find Herbs), Lagerfeuer-Nähe und andere Dauer-Auren
     -- lassen sich nicht sinnvoll verfolgen
     local jetzt = {}
+    -- Waffenbuffs zuerst: Gifte, Steine, Öle, Windfury (keine Auren, eigene Zeilen je Hand)
+    for _, platz in ipairs(Wf.HAENDE) do
+      local a = Wf.aktiv[platz]
+      if a and not a.weg then table.insert(jetzt, { waffe = platz, id = a.id, name = a.name, icon = a.icon }) end
+    end
     for _, a in ipairs((ns.Buffs.Alle())) do
       if (a.dauer or 0) > 0 then table.insert(jetzt, a) end
     end

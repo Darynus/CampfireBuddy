@@ -15,13 +15,9 @@ A small bar with the time left, reminders before they run out, a Camp Kit for yo
 
 ![How it works](images/campfirebuddy-1-ablauf.png)
 
-## New in 1.2
+## New in 1.3
 
-- **Supplies in the Camp Kit**: weapon buffs for both hands with their time left, your sleeping bag and three slots for food, drinks or potions. One click each, a glow when a weapon has no buff.
-- **Key bindings** for every Camp Kit button, the campfire button and the supplies.
-- **Announce your camp** in Say or General with a map pin, or share it with your group so they see it on their map.
-- **Rested XP at the fire**: how much you gain per hour and when it is full, with a message the moment it is.
-- **Show the bar only when needed**, or let it fade until you point at it. Campfire pins in three sizes, also on OpenMap.
+- **Track your weapon buffs**: poisons, Windfury, sharpening stones, weightstones and oils. Click *Track* in the Buffs tab, and the bar shows them for each hand with the time left and the charges. You get a reminder before they run out and a hint when a weapon has none. Tracking is per character, so only your rogue gets reminded.
 
 ## Ten campfire games
 
@@ -61,6 +57,7 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 - **Tooltips like the game's own**: every camp object shows its bonus for each level range, yours in green, what it is exclusive with and its profession.
 - **The camp itself**: which campfire you are at (Basic 3, Journeyman 5 or Expert 10 slots), which objects stand there, also the ones placed by strangers nearby, and what you can still add or upgrade.
 - **Campfires on your world map**: fires you visited or lit, and your group's, with the time left to the second (or how long at most, if it was already burning when you came), who placed it and what each object gives you at your level.
+- **Announce your camp** in Say or General with a map pin, or share it with your group so they see it on their map.
 
 ![Know your camp](images/campfirebuddy-7-camp.png)
 
@@ -69,6 +66,8 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 ## Your buffs at a glance
 
 - **Buff bar**: Camp Benefits and your food buff with the time left. Add any other buff you want to keep an eye on.
+- **Weapon buffs**: poisons, Windfury, stones and oils for each hand, with the time left and the charges, and a hint when a tracked weapon has none.
+- **Rested XP at the fire**: how much you gain per hour and when it is full, with a message the moment it is.
 - **Food buff with the XP bonus**: Campfire Buddy knows every Well Fed by its spell ID. Only a Well Fed with the experience bonus counts, snacks without it show "Well Fed, but no XP bonus".
 - **Hungry!** A little alarm of our own plays when your food with the experience bonus runs out.
 - **Reminders** 2, 5 or 10 minutes before a buff runs out, plus one chat line at login or when you join a group without them.
@@ -83,13 +82,15 @@ While you sit for a minute, a baby murloc walks a little path through a moonlit 
 - At a campfire you get a **Sit** button and your best camp object for every bonus, from Camp Chair and Lodestone up to Rock Garden, Master Forge and Fishing Hut. What the camp still needs comes first.
 - Carry one? A click places it. Otherwise a click builds it, just like *Create* in your profession window. Cooldowns are shown on the buttons.
 - **No campfire around?** Carry a campfire kit and its own button places it with one click, apart from the Camp Kit. Without a kit it offers to light your own campfire when your Camp Benefits are missing.
+- **Supplies**: a second row with weapon buffs for both hands and their time left, your sleeping bag and three slots for food, drinks or potions. One click each, and a weapon without a buff makes its slot glow.
+- **Key bindings** for every Camp Kit button, the campfire button and the supplies.
 - The **Camp kit** tab lists every camp object of the game with its profession, its bonus, the values you have seen, your materials and a **Craft** button.
 
 ![Camp Kit](images/campfirebuddy-10-kit.png)
 
 ## Make it yours
 
-The window looks and feels like the game's own windows. Every reminder, the bar, the Camp Kit, the campfire button, the murloc show, the music and the sounds can be switched on or off: in the Campfire Buddy window (`/campfire`), from the minimap button and under *Esc > Options > AddOns*.
+The window looks and feels like the game's own windows. Every reminder, the bar, the Camp Kit, the campfire button, the murloc show, the music and the sounds can be switched on or off: in the Campfire Buddy window (`/campfire`), from the minimap button and under *Esc > Options > AddOns*. The bar can show only when needed or fade until you point at it, and campfire pins come in three sizes, also on OpenMap.
 
 ![Settings](images/campfirebuddy-11-optionen.png)
 

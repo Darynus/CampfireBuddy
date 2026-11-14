@@ -65,8 +65,7 @@ end
 
 -- Eigene Wahl je Char: ns.db.vorrat["Name-Realm"] = { haupt, neben, [1], [2], [3] }
 local function wahl()
-  local name = UnitName and UnitName("player") or "?"
-  local schluessel = name .. "-" .. ((GetRealmName and GetRealmName()) or "?")
+  local schluessel = ns.charSchluessel()
   ns.db.vorrat = ns.db.vorrat or {}
   ns.db.vorrat[schluessel] = ns.db.vorrat[schluessel] or {}
   return ns.db.vorrat[schluessel]
@@ -81,33 +80,11 @@ local function waffe(platz)
   if k == 2 and u and (SCHARF[u] or STUMPF[u]) then return u end
 end
 
-local function geheim(v) return issecretvalue ~= nil and issecretvalue(v) end
-
--- Restzeit des Waffenbuffs in Sekunden je Hand (16, 17), nil ohne Buff. Forever fragt je Waffe
--- über C_Item.GetWeaponEnchantInfo (wie die Buffleiste des Spiels), ältere Clients global.
+-- Restzeit des Waffenbuffs in Sekunden je Hand (16, 17), nil ohne Buff. Gelesen wird in
+-- Waffenbuffs.lua (C_Item.GetWeaponEnchantInfo je Waffe, wie die Buffleiste des Spiels).
 function V.Verzauberung()
   local t = {}
-  if C_Item and C_Item.GetWeaponEnchantInfo then
-    local ws = Enum and Enum.WeaponSlot
-    for platz, slot in pairs({ [16] = ws and ws.MainHand or 0, [17] = ws and ws.OffHand or 1 }) do
-      local ok, liste = pcall(C_Item.GetWeaponEnchantInfo, slot)
-      if ok and type(liste) == "table" then
-        for _, e in pairs(liste) do
-          if type(e) == "table" and not geheim(e.hasEnchant) and e.hasEnchant then
-            local ms = e.timeLeft
-            t[platz] = (type(ms) == "number" and not geheim(ms)) and ms / 1000 or 0
-            break
-          end
-        end
-      end
-    end
-    return t
-  end
-  if not GetWeaponEnchantInfo then return t end
-  local ok, hatH, zeitH, _, _, hatN, zeitN = pcall(GetWeaponEnchantInfo)
-  if not ok or geheim(hatH) or geheim(hatN) then return t end
-  t[16] = hatH and (zeitH or 0) / 1000 or nil
-  t[17] = hatN and (zeitN or 0) / 1000 or nil
+  for platz, e in pairs((ns.Waffen.Roh())) do t[platz] = e.rest end
   return t
 end
 

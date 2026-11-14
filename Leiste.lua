@@ -1,6 +1,7 @@
 -- Leiste: klein und verschiebbar. Je verfolgtem Buff eine Zeile mit Icon, Name, Restzeit und
--- Balken. Ohne Buff "No camp buff", am Lagerfeuer "Campfire nearby" (Knöpfe dafür im Camp Kit).
--- Fehlt der Essens-Buff, eine eigene Zeile "No food buff". Am Feuer eine Zeile mit dem
+-- Balken, bei Waffenbuffs mit Ladungen auf dem Icon. Ohne Buff "No camp buff", am Lagerfeuer
+-- "Campfire nearby" (Knöpfe dafür im Camp Kit). Fehlt der Essens-Buff, eine eigene Zeile "No food
+-- buff", fehlt ein verfolgter Waffenbuff, "No weapon buff". Am Feuer eine Zeile mit dem
 -- Erholungsbonus (Erholung.lua).
 -- Zeigen: immer, nur mit Lager-Buff, oder nur bei Bedarf (am Feuer, oder etwas fehlt oder endet
 -- bald). Auf Wunsch fast durchsichtig, bis die Maus darauf zeigt (Wünsche aus den Kommentaren
@@ -13,7 +14,7 @@ local B = {}
 ns.Leiste = B
 
 local BREITE, ZEILE, RAND = 230, 34, 4
-local MAX_ZEILEN = 4
+local MAX_ZEILEN = 6   -- Lager, Schlafsack, Essen, zwei Waffen und ein eigener Buff
 local WARNFARBE = { 0.96, 0.77, 0.32, 1 }
 local BLASS = 0.3
 local ERHOLUNG_ICON = "Interface\\Icons\\Spell_Nature_Sleep"
@@ -52,6 +53,9 @@ local function zeileBauen(f, i)
   z.icon:SetSize(26, 26)
   z.icon:SetPoint("LEFT", 4, 0)
   z.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  -- Ladungen eines Waffenbuffs (Gift), wie auf den Symbolen der Buffleiste des Spiels
+  z.ladungen = S.schrift(z, "NumberFontNormal", F.text)
+  z.ladungen:SetPoint("BOTTOMRIGHT", z.icon, "BOTTOMRIGHT", 1, -1)
   z.name = S.schrift(z, "GameFontHighlightSmall", F.text)
   z.name:SetPoint("TOPLEFT", 38, -5)
   z.name:SetWidth(BREITE - 2 * RAND - 38 - 70)
@@ -161,6 +165,30 @@ function B:Bauen()
   essen.glanz:SetAlpha(0)
   essen.puls = S.pulsieren(essen.glanz, 0.1, 1, 1.1)
 
+  -- Zeile, wenn ein verfolgter Waffenbuff fehlt (Waffenbuffs.lua), gleich wie beim Essen
+  local waffe = CreateFrame("Frame", nil, f)
+  self.waffe = waffe
+  waffe:SetSize(BREITE - 2 * RAND, ZEILE)
+  waffe.icon = waffe:CreateTexture(nil, "ARTWORK")
+  waffe.icon:SetSize(26, 26)
+  waffe.icon:SetPoint("LEFT", 4, 0)
+  waffe.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  waffe.icon:SetDesaturated(true)
+  waffe.titel = S.schrift(waffe, "GameFontHighlightSmall", WARNFARBE)
+  waffe.titel:SetPoint("TOPLEFT", 38, -5)
+  waffe.titel:SetText(L.NO_WEAPON_BUFF)
+  waffe.text = S.schrift(waffe, "GameFontHighlightSmall", F.leise)
+  waffe.text:SetPoint("TOPLEFT", 38, -19)
+  waffe.text:SetWidth(BREITE - 2 * RAND - 44)
+  waffe.text:SetJustifyH("LEFT")
+  waffe.text:SetWordWrap(false)
+  waffe.glanz = waffe:CreateTexture(nil, "BACKGROUND")
+  waffe.glanz:SetAllPoints()
+  waffe.glanz:SetColorTexture(WARNFARBE[1], WARNFARBE[2], WARNFARBE[3], 0.24)
+  waffe.glanz:SetAlpha(0)
+  waffe.puls = S.pulsieren(waffe.glanz, 0.1, 1, 1.1)
+  waffe:Hide()
+
   -- Zeile mit dem Erholungsbonus am Feuer
   local erholung = CreateFrame("Frame", nil, f)
   self.erholung = erholung
@@ -198,6 +226,7 @@ function B:Bedarf()
   local grenze = (ns.db.warnenMinuten or 0) > 0 and ns.db.warnenMinuten * 60 or 600
   if not ns.Buffs:Lager() then return true end
   if ns.db.essenErinnern and ns.Buffs.gelesen and not ns.Buffs:Essen() then return true end
+  if ns.Waffen and #ns.Waffen:Fehlt() > 0 then return true end
   for _, a in ipairs(ns.Buffs:Liste()) do
     local rest = ns.Buffs.Rest(a)
     if rest and rest <= grenze then return true end
@@ -230,6 +259,7 @@ function B:Aktualisieren()
       local rest = ns.Buffs.Rest(a)
       z.icon:SetTexture(a.icon or S.LAGER)
       setzen(z.name, a.name or string.format(L.SPELL_ID, a.id))
+      setzen(z.ladungen, (a.ladungen or 0) > 1 and tostring(a.ladungen) or "")
       if rest then
         setzen(z.zeit, ns.dauerText(rest))
         local knapp = warnen > 0 and rest <= warnen
@@ -292,6 +322,21 @@ function B:Aktualisieren()
     zeilen = zeilen + 1
   end
 
+  -- Verfolgter Waffenbuff fehlt: welche Hand, mit dem Symbol der Waffe
+  local fehlt = ns.Waffen and ns.Waffen:Fehlt() or {}
+  local waffeZeigen = #fehlt > 0
+  self.waffe:SetShown(waffeZeigen)
+  S.puls(self.waffe.puls, waffeZeigen)
+  if waffeZeigen then
+    self.waffe:ClearAllPoints()
+    self.waffe:SetPoint("TOPLEFT", RAND, -RAND - zeilen * ZEILE)
+    zeilen = zeilen + 1
+    local haende = {}
+    for _, platz in ipairs(fehlt) do table.insert(haende, ns.Waffen.Hand(platz)) end
+    setzen(self.waffe.text, table.concat(haende, ", "))
+    self.waffe.icon:SetTexture(ns.Waffen.Symbol(fehlt[1]) or S.LAGER)
+  end
+
   -- Erholungsbonus am Feuer: Stand, Rate pro Stunde, wann voll
   local R = ns.Erholung
   if R then R:Pruefen() end
@@ -321,7 +366,7 @@ function B:Aktualisieren()
 
   -- Verblassen, außer die Maus zeigt darauf oder es gibt gerade etwas zu tun
   local maus = self.rahmen.IsMouseOver and self.rahmen:IsMouseOver()
-  local blass = ns.db.verblassen and not maus and not lagerplatz and not essenZeigen
+  local blass = ns.db.verblassen and not maus and not lagerplatz and not essenZeigen and not waffeZeigen
   self.rahmen:SetAlpha(blass and BLASS or 1)
 end
 

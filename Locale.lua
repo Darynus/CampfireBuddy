@@ -87,7 +87,16 @@ L.NONE_ACTIVE = "None active."
 L.TRACKED_TITLE = "Tracked Buffs"
 L.TRACKED_DEFAULT = "built in"
 L.YOUR_BUFFS = "Your Buffs Right Now"
-L.YOUR_BUFFS_HELP = "Only buffs with a timer are listed. Track one to see it in the bar and get a reminder before it runs out. Buffs are recognized by spell ID, in every game language."
+L.YOUR_BUFFS_HELP = "Only buffs with a timer are listed. Track one to see it in the bar and get a reminder before it runs out. Weapon buffs like poisons, Windfury, stones and oils are listed by hand and tracked for this character only."
+L.NO_WEAPON_BUFF = "No weapon buff"
+L.WEAPON_BUFF_MAIN = "Main hand buff"
+L.WEAPON_BUFF_OFF = "Off hand buff"
+L.WEAPON_CHARGES = "%d charges"
+L.MISSING_WEAPON_MAIN = "weapon buff on your main hand"
+L.MISSING_WEAPON_OFF = "weapon buff on your off hand"
+L.STATUS_WEAPON_MISSING = "%s: no weapon buff"
+L.MSG_WEAPON_TRACKED = "%s: weapon buffs are now tracked on this character."
+L.MSG_WEAPON_UNTRACKED = "%s: weapon buffs are no longer tracked on this character."
 L.NO_BUFFS = "No buffs right now."
 L.BTN_TRACK = "Track"
 L.BTN_UNTRACK = "Stop"
@@ -791,6 +800,10 @@ L.NEWS_AGAIN = "Show this after updates"
 L.NEWS_AGAIN_HELP = "A short window once after Campfire Buddy was updated. /campfire news shows it again."
 L.NEWS_OK = "Got it"
 L.NEWS = {
+  { version = "1.3.0", zeilen = {
+    "Track weapon buffs: poisons, Windfury, sharpening stones, weightstones and oils. They show up under Your Buffs Right Now in the Buffs tab, one row per hand. Click Track, and the bar shows them with time and charges.",
+    "You get the same warning before they run out as for other buffs, and the bar tells you when a tracked weapon has no buff. Tracking is per character, so your warrior stays quiet while your rogue gets reminded.",
+  } },
   { version = "1.2.1", zeilen = {
     "Camp check: a Tanning Rack, Anvil, Spinning Wheel or Loom you point at shows with a question mark, because villages have them too. Click its slot if it stands at your fire, and it counts right away.",
   } },
