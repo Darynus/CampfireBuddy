@@ -84,7 +84,12 @@ end
 -- Waffenbuffs.lua (C_Item.GetWeaponEnchantInfo je Waffe, wie die Buffleiste des Spiels).
 function V.Verzauberung()
   local t = {}
-  for platz, e in pairs((ns.Waffen.Roh())) do t[platz] = e.rest end
+  for platz, liste in pairs((ns.Waffen.Roh())) do
+    -- Mehrere je Waffe (Gift und Stein): die kürzeste Restzeit zählt
+    for _, e in ipairs(liste) do
+      if not t[platz] or e.rest < t[platz] then t[platz] = e.rest end
+    end
+  end
   return t
 end
 

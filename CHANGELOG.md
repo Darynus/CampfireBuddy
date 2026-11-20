@@ -1,5 +1,12 @@
 # Campfire Buddy changelog
 
+## 1.3.1 (2026-11-20)
+
+- **Fix**: weapon buffs now show up. WoW Forever puts more than one on a weapon, a poison and a sharpening stone at the same time, and Campfire Buddy now lists each of them with its own name, time and charges. When one runs out and the other stays, you get the message for the one that ran out.
+- If the game ever does not tell Campfire Buddy about your weapon buffs, it tries the older way of asking, and a problem shows up once in your chat instead of staying silent. `/campfire debug` shows what the game reports.
+- **Camp check**: objects other players placed at your fire count as soon as the game's interact targeting points at them while you walk by, if you use it, so you do not have to hover over each one. Names with color codes in their tooltip count too.
+- **Camp check**: camp objects are also recognized by their object ID, which is the same in every game language, and Campfire Buddy remembers the ID of every camp object it has recognized once. `/campfire debug` lists what it saw at the fire.
+
 ## 1.3.0 (2026-11-14)
 
 - **Track your weapon buffs**: poisons, Windfury, sharpening stones, weightstones and oils. They show up under *Your Buffs Right Now* in the Buffs tab, one row per hand. Click *Track*, and the bar shows the weapon buff with the time left and its charges, wherever you are.

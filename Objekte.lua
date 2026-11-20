@@ -141,6 +141,23 @@ O.LISTE = {
     mats = { { 10284, 10 }, { 159, 5 }, { 3713, 4 } }, name = L.OBJ_OVEN, info = L.OBJ_OVEN_INFO },
 }
 
+-- Objekte am Feuer nach ihrer Kennung (Eintrag der GUID "GameObject-...-Kennung-..."), in jeder
+-- Sprache gleich. Nötig, weil manche anders heißen als Rezept und Gegenstand: Der Camp Chair steht als
+-- "Chair" oder "Wooden Chair" am Feuer, und sein Tooltip zeigt nur diesen Namen (Patrick, 14. und
+-- 15. Nov, lagerProtokoll). Gelernte Kennungen stehen in CampfireBuddyDB.objektIDs (Lager.lua).
+-- [Kennung] = Zauber-ID des Rezepts
+O.OBJEKT_IDS = {}
+
+local nachSpell = {}
+for _, o in ipairs(O.LISTE) do nachSpell[o.spell] = o end
+
+-- Lager-Objekt zu einer Kennung: eingebaut oder gelernt
+function O.NachKennung(kennung)
+  if type(kennung) ~= "number" then return nil end
+  local spell = O.OBJEKT_IDS[kennung] or (ns.db and ns.db.objektIDs and ns.db.objektIDs[kennung])
+  return spell and nachSpell[spell] or nil
+end
+
 -- Was jede Familie bringt (kurz, für den Reiter Camp), und die Reihenfolge der Boni dort
 local BONUS = {
   stein = L.BONUS_STEIN, schleifen = L.BONUS_SCHLEIFEN, stuhl = L.BONUS_STUHL, kerze = L.BONUS_KERZE,

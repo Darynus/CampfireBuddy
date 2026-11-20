@@ -14,7 +14,7 @@ local B = {}
 ns.Leiste = B
 
 local BREITE, ZEILE, RAND = 230, 34, 4
-local MAX_ZEILEN = 6   -- Lager, Schlafsack, Essen, zwei Waffen und ein eigener Buff
+local MAX_ZEILEN = 8   -- Lager, Schlafsack, Essen, Gift und Stein auf zwei Waffen, ein eigener Buff
 local WARNFARBE = { 0.96, 0.77, 0.32, 1 }
 local BLASS = 0.3
 local ERHOLUNG_ICON = "Interface\\Icons\\Spell_Nature_Sleep"

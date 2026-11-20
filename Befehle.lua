@@ -61,18 +61,22 @@ ns.befehl("debug", L.CMD_DEBUG, function()
     DEFAULT_CHAT_FRAME:AddMessage(string.format("  #%s map %s at %.3f %.3f, %s, %s left", tostring(e.nr), tostring(e.karte),
       e.x or 0, e.y or 0, e.genau and "exact" or "rough", e.ende and ns.dauerText(e.ende - LG.Zeit()) or "always"))
   end
+  -- Die letzten Einträge im Protokoll des Lagers (Maus, Zielhilfe, Camp Benefits)
+  local p = ns.db.lagerProtokoll or {}
+  for i = math.max(1, #p - 7), #p do DEFAULT_CHAT_FRAME:AddMessage("  log " .. string.gsub(p[i], "|", "||")) end
   -- Essen: welcher Buff zählt, mit Zauber-ID
   local essen, ohneXp = ns.Buffs:Essen(), ns.Buffs:EssenOhneXp()
   local mahl = essen or ohneXp
   ns.melde(string.format("Food: %s, spell %s, XP bonus %s", mahl and tostring(mahl.name) or "none",
     tostring(mahl and mahl.id), tostring(essen ~= nil)))
-  -- Waffenbuffs: je Hand Kennung, Name, Restzeit, Ladungen, verfolgt
-  for _, platz in ipairs(ns.Waffen.HAENDE) do
-    local a = ns.Waffen.aktiv[platz]
-    local r = a and ns.Buffs.Rest(a)
-    ns.melde(string.format("Weapon %d: %s, enchant %s, %s left, %s charges, tracked %s", platz, a and tostring(a.name) or "none",
-      tostring(a and a.enchant), r and ns.dauerText(r) or "-", tostring(a and a.ladungen), tostring(ns.Waffen.Verfolgt(platz))))
+  -- Waffenbuffs: was die Schnittstelle liefert, die gelesenen Buffs je Hand und welche Hand verfolgt wird
+  local Wf = ns.Waffen
+  ns.melde("Weapon buffs: " .. tostring(Wf.notiz or "not read yet") .. (Wf.fehler and (" | error: " .. Wf.fehler) or ""))
+  for _, a in ipairs(Wf:Alle()) do
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("  weapon %d: %s, enchant %s, %s left, %d charges", a.platz, tostring(a.name),
+      tostring(a.enchant), ns.dauerText(ns.Buffs.Rest(a) or 0), a.ladungen or 0))
   end
+  ns.melde(string.format("Weapon buffs tracked: main hand %s, off hand %s", tostring(Wf.Verfolgt(16)), tostring(Wf.Verfolgt(17))))
   -- Minikarten-Knopf: Name, Winkel und Ebenen von Knopf und Minikarte
   local b = ns.Minimap.knopf
   local okS, strata = pcall(Minimap.GetFrameStrata, Minimap)

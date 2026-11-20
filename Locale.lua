@@ -800,6 +800,10 @@ L.NEWS_AGAIN = "Show this after updates"
 L.NEWS_AGAIN_HELP = "A short window once after Campfire Buddy was updated. /campfire news shows it again."
 L.NEWS_OK = "Got it"
 L.NEWS = {
+  { version = "1.3.1", zeilen = {
+    "Weapon buffs show up now: a poison and a sharpening stone on the same weapon each get their own row with name, time and charges.",
+    "Camp check: objects other players placed count as soon as the game's interact targeting points at them while you walk by, if you use it.",
+  } },
   { version = "1.3.0", zeilen = {
     "Track weapon buffs: poisons, Windfury, sharpening stones, weightstones and oils. They show up under Your Buffs Right Now in the Buffs tab, one row per hand. Click Track, and the bar shows them with time and charges.",
     "You get the same warning before they run out as for other buffs, and the bar tells you when a tracked weapon has no buff. Tracking is per character, so your warrior stays quiet while your rogue gets reminded.",

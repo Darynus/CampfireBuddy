@@ -129,7 +129,7 @@ end)
 local function fehltAlles()
   local t = ns.Buffs:Fehlt()
   if ns.Waffen then
-    ns.Waffen:Lesen()
+    ns.Waffen.SicherLesen()
     for _, x in ipairs(ns.Waffen:FehltText()) do table.insert(t, x) end
   end
   return t

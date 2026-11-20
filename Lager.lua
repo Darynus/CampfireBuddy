@@ -13,6 +13,12 @@
 --      (Patricks Fund in Goldshire, 16. Okt), das Gerbgestell am Feuer fehlte deshalb (18. Okt).
 --   4. Aufstellen durch Fremde in der Nähe (Namensplaketten, Ziel, Maus), solange man am Feuer ist,
 --      und ohne Namensplaketten über das Kampflog (LG:Kampflog).
+--   5. Zielhilfe beim Vorbeilaufen ("softinteract"): Zeigt sie auf ein Spielobjekt am Feuer, zählt
+--      sein Name wie die Maus darüber (Patrick, 14. Nov: ein Schleifrad, das ein anderer Spieler
+--      aufgestellt hatte, kannte der Lager-Check nicht).
+-- Bei Maus und Zielhilfe zählt zuerst die Kennung des Objekts aus seiner GUID (Objekte.lua,
+-- O.NachKennung), dann der Name. Wird ein Objekt eindeutig über den Namen erkannt, merkt sich
+-- Campfire Buddy seine Kennung (objektIDs). So zählt es auch, wo es anders heißt.
 -- Die Boni selbst stehen in Forever alle im einen Buff Camp Benefits (Zeilen "Objekt: Wirkung"),
 -- eigene Buffs je Objekt gibt es nicht (Patricks Screenshot, 16. Okt). LG:Benefits liest sie.
 -- Namen werden nur mit den Namen verglichen, die das Spiel selbst zu den IDs nennt. So passt es in
@@ -50,6 +56,17 @@ do
 end
 function LG.Rang(o) return RANG[o] or 1 end
 
+-- Protokoll für die Fehlersuche: was Campfire Buddy am Feuer gesehen hat (Maus, Zielhilfe, Camp
+-- Benefits), die letzten 30 Einträge. Steht in den gespeicherten Daten (lagerProtokoll, nach /reload
+-- lesbar) und kommt mit /campfire debug.
+function LG.Protokoll(text)
+  if not ns.db then return end
+  local p = type(ns.db.lagerProtokoll) == "table" and ns.db.lagerProtokoll or {}
+  ns.db.lagerProtokoll = p
+  table.insert(p, date("%H:%M:%S") .. "  " .. tostring(text))
+  while #p > 30 do table.remove(p, 1) end
+end
+
 -- Namen aller Objekte, wie das Spiel sie nennt (Gegenstand, Rezept, Aufstell-Zauber), längste
 -- zuerst. Noch nicht geladene Gegenstände werden angefordert und später nachgetragen.
 local namen, namenVoll = nil, false
@@ -76,10 +93,11 @@ local function namenListe()
   return t
 end
 
--- Welches Objekt meint dieser Text? Er muss mit dem Namen beginnen ("Lodestone: +12 ...").
+-- Welches Objekt meint dieser Text? Er muss mit dem Namen beginnen ("Lodestone: +12 ..."). Farbcodes
+-- (|cffxxxxxx ... |r) stören dabei nicht.
 function LG.Erkennen(text)
   if type(text) ~= "string" or geheim(text) then return nil end
-  text = string.gsub(text, "^%s+", "")
+  text = string.gsub(string.gsub(string.gsub(text, "|c%x%x%x%x%x%x%x%x", ""), "|r", ""), "^%s+", "")
   for _, e in ipairs(namenListe()) do
     if string.sub(text, 1, #e.n) == e.n then return e.o end
   end
@@ -562,7 +580,10 @@ function LG:Benefits()
     end
   end
   -- Nur merken, wenn der Tooltip schon Zeilen hatte (gleich nach der Vergabe kann er leer sein)
-  if #zeilen > 0 then self.benefits, self.benefitsEnde, self.benefitsZeilen = boni, cb.ende, zeilen end
+  if #zeilen > 0 then
+    self.benefits, self.benefitsEnde, self.benefitsZeilen = boni, cb.ende, zeilen
+    LG.Protokoll("Camp Benefits: " .. table.concat(zeilen, " / "))
+  end
   return boni, zeilen
 end
 
@@ -794,14 +815,54 @@ LG.LagerZeilen = lagerZeilen
 -- solche Zeilen ist es nur vermutet: Das Gerbgestell im Lager zeigt im Tooltip nur seinen Namen
 -- (Patrick, 18. Okt), genau wie eines im Dorf. Bestätigt wird es, sobald der Bonus seiner Familie
 -- frisch an diesem Feuer kommt (beim Gerbgestell "Boosted Rest", LG:Pruefen).
-function LG:Objekt(text, zeilen)
+-- Kennung (Eintrag) eines Spielobjekts aus seiner GUID: GameObject-0-Server-Instanz-Zone-Kennung-Spawn
+local function objektKennung(guid)
+  if type(guid) ~= "string" or geheim(guid) then return nil end
+  return tonumber(string.match(guid, "^GameObject%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+end
+LG.ObjektKennung = objektKennung
+
+-- Kennung eines Objekts merken, das sicher ein Lager-Objekt ist (eindeutiger Name, Lager-Zeilen im
+-- Tooltip oder vom Spieler bestätigt)
+local function kennungLernen(kennung, o)
+  if not (kennung and o and ns.db) or O.OBJEKT_IDS[kennung] then return end
+  ns.db.objektIDs = ns.db.objektIDs or {}
+  ns.db.objektIDs[kennung] = o.spell
+end
+
+local zuletztGesehen = {}
+function LG:Objekt(text, zeilen, quelle, kennung)
   if not self.aktiv or imKampf() then return end
-  local o = LG.Erkennen(text)
+  local name = type(text) == "string" and not geheim(text) and text or nil
+  local o = O.NachKennung(kennung)
+  local ueberKennung = o ~= nil
+  if not o then o = LG.Erkennen(name) end
+  -- Ins Protokoll, einmal je Name und Kennung in 15 Sekunden. Unbekannte mit den nächsten Zeilen
+  -- ihres Tooltips (zeigt er Bonus oder Beruf?).
+  local merkName = tostring(name) .. "#" .. tostring(kennung)
+  if ns.jetzt() - (zuletztGesehen[merkName] or -100) > 15 then
+    zuletztGesehen[merkName] = ns.jetzt()
+    local mehr = ""
+    if not o and type(zeilen) == "table" then
+      for i = 2, math.min(4, #zeilen) do
+        local z = type(zeilen[i]) == "table" and zeilen[i].leftText or zeilen[i]
+        if type(z) == "string" and not geheim(z) and z ~= "" then mehr = mehr .. " | " .. z end
+      end
+    end
+    LG.Protokoll(string.format("%s: %s%s -> %s%s", quelle or "mouse", tostring(name),
+      kennung and (" (id " .. kennung .. ")") or "", o and o.name or "unknown", mehr))
+  end
   if not o then return end
-  if not o.mehrdeutig then return self:Merken(o, "maus") end
-  if lagerZeilen(o, zeilen) then return self:Merken(o, "tooltip") end
+  if ueberKennung or not o.mehrdeutig then
+    if not ueberKennung then kennungLernen(kennung, o) end
+    return self:Merken(o, "maus")
+  end
+  if lagerZeilen(o, zeilen) then
+    kennungLernen(kennung, o)
+    return self:Merken(o, "tooltip")
+  end
   self.vermutet = self.vermutet or {}
-  self.vermutet[o.familie] = { o = o, zeit = serverZeit() }
+  self.vermutet[o.familie] = { o = o, zeit = serverZeit(), kennung = kennung }
   self:Geaendert()
 end
 
@@ -810,6 +871,8 @@ end
 -- "bestaetigt", damit es auch nach /reload zählt (Maus-Funde mehrdeutiger Objekte zählen dort nicht).
 function LG:Bestaetigen(o)
   if not self.aktiv or not o then return end
+  local v = self.vermutet and self.vermutet[o.familie]
+  if v and v.o == o then kennungLernen(v.kennung, o) end
   if self.vermutet then self.vermutet[o.familie] = nil end
   self:Merken(o, "bestaetigt")
 end
@@ -833,11 +896,23 @@ ns.beimStart(function()
     pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Object, function(_, daten)
       local zeile = type(daten) == "table" and type(daten.lines) == "table" and daten.lines[1]
       if type(zeile) == "table" then
-        LG:Objekt(zeile.leftText, daten.lines)
+        LG:Objekt(zeile.leftText, daten.lines, "mouse", objektKennung(daten.guid))
         LG:WerteLernen(daten.lines)
       end
     end)
   end
+end)
+
+-- Zielhilfe beim Vorbeilaufen: Zeigt die Interaktionstaste gerade auf ein Spielobjekt am Feuer, zählt
+-- es wie die Maus darüber, über seine Kennung und seinen Namen.
+ns.ereignis("PLAYER_SOFT_INTERACT_CHANGED", function()
+  if not LG.aktiv or imKampf() or not UnitGUID then return end
+  local ok, guid = pcall(UnitGUID, "softinteract")
+  local kennung = ok and objektKennung(guid)
+  if not kennung then return end
+  local okName, n = pcall(UnitName, "softinteract")
+  local name = okName and type(n) == "string" and not geheim(n) and n ~= "" and n or nil
+  LG:Objekt(name, nil, "nearby", kennung)
 end)
 
 -- Auswertung ---------------------------------------------------------------------------------

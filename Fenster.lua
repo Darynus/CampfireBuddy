@@ -252,14 +252,20 @@ local function bauenBuffs()
       local a = ns.Buffs.aktiv[id]
       table.insert(verfolgt, { id = id, name = a and a.name or name, icon = a and a.icon })
     end
-    -- Verfolgte Hände dieses Chars, auch wenn gerade kein Waffenbuff drauf ist
+    -- Verfolgte Hände dieses Chars mit ihren Waffenbuffs, auch wenn gerade keiner drauf ist
     local Wf = ns.Waffen
+    local alleWaffen = Wf:Alle()
     for _, platz in ipairs(Wf.HAENDE) do
       if Wf.Verfolgt(platz) then
-        local a = Wf.aktiv[platz]
-        local da = a and not a.weg
-        table.insert(verfolgt, { waffe = platz, id = "waffe" .. platz, name = da and a.name or L.NO_WEAPON_BUFF,
-          icon = da and a.icon or Wf.Symbol(platz) })
+        local namen, icon = {}, nil
+        for _, a in ipairs(alleWaffen) do
+          if a.platz == platz then
+            namen[#namen + 1] = a.name
+            icon = icon or a.icon
+          end
+        end
+        table.insert(verfolgt, { waffe = platz, id = "waffe" .. platz,
+          name = #namen > 0 and table.concat(namen, ", ") or L.NO_WEAPON_BUFF, icon = icon or Wf.Symbol(platz) })
       end
     end
     table.sort(verfolgt, function(a, b)
@@ -271,10 +277,9 @@ local function bauenBuffs()
     -- Nur Buffs mit Ablaufzeit: Aufspüren (Find Herbs), Lagerfeuer-Nähe und andere Dauer-Auren
     -- lassen sich nicht sinnvoll verfolgen
     local jetzt = {}
-    -- Waffenbuffs zuerst: Gifte, Steine, Öle, Windfury (keine Auren, eigene Zeilen je Hand)
-    for _, platz in ipairs(Wf.HAENDE) do
-      local a = Wf.aktiv[platz]
-      if a and not a.weg then table.insert(jetzt, { waffe = platz, id = a.id, name = a.name, icon = a.icon }) end
+    -- Waffenbuffs zuerst: Gifte, Steine, Öle, Windfury (keine Auren, eine Zeile je Buff mit der Hand)
+    for _, a in ipairs(alleWaffen) do
+      table.insert(jetzt, { waffe = a.platz, id = a.id, name = a.name, icon = a.icon })
     end
     for _, a in ipairs((ns.Buffs.Alle())) do
       if (a.dauer or 0) > 0 then table.insert(jetzt, a) end
